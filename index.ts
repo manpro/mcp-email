@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
+import { registerBrowserReadAgent, registerClaudeCodePromptAgent, registerHealthCheck } from './mcp.config';
 
 dotenv.config();
 
@@ -294,10 +295,17 @@ app.post('/agent/weaviate-query', async (req: Request, res: Response) => {
   }
 });
 
+// Register MCP agents
+registerBrowserReadAgent(app);
+registerClaudeCodePromptAgent(app);
+registerHealthCheck(app);
+
 app.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] MCP server listening on port ${PORT}`);
   console.log(`[${new Date().toISOString()}] Gitea endpoint: ${GITEA_URL}`);
   console.log(`[${new Date().toISOString()}] Weaviate endpoint: ${WEAVIATE_URL}`);
+  console.log(`[${new Date().toISOString()}] Browser read endpoint: /agent/browser-read`);
+  console.log(`[${new Date().toISOString()}] Claude Code prompt endpoint: /agent/claude-code-prompt`);
   console.log(`[${new Date().toISOString()}] Available databases: ${Object.keys(dbMap).join(', ')}`);
   
   process.on('SIGTERM', async () => {
