@@ -1,0 +1,274 @@
+[
+  {
+    "name": "claude-env",
+    "path": "/home/micke/claude-env",
+    "type": "Node.js/JavaScript",
+    "description": "MCP (Model Context Protocol) server f\u00f6r Cursor IDE med st\u00f6d f\u00f6r Gitea och PostgreSQL-integrationer. - Skapa issues i Gitea repositories - Input format: `\"repo=owner/name, title=Issue Title, body=Issue",
+    "indicators": [
+      "README.md",
+      "package.json",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "crewai",
+    "path": "/home/micke/crewai",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "crewai-studio",
+    "path": "/home/micke/crewai/crewai-studio",
+    "type": "Python",
+    "description": "Welcome to CrewAI Studio! This application provides a user-friendly interface written in Streamlit for interacting with CrewAI, suitable even for those who don't want to write any code. Follow the ste",
+    "indicators": [
+      "Dockerfile",
+      "requirements.txt",
+      "README.md",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "elpriser-app",
+    "path": "/home/micke/elpriser-sverige/elpriser-app",
+    "type": "Node.js/JavaScript",
+    "description": "Elpriser Sverige \u00e4r en responsiv webbapplikation som visar aktuella och historiska elpriser f\u00f6r Sveriges fyra elomr\u00e5den (SE1-SE4). Applikationen h\u00e4mtar data fr\u00e5n elprisetjustnu.se f\u00f6r historiska prise",
+    "indicators": [
+      "README.md",
+      "package.json",
+      "code_files"
+    ]
+  },
+  {
+    "name": "elpriser-frontend",
+    "path": "/home/micke/elpriser-sverige/elpriser-frontend",
+    "type": "Node.js/JavaScript",
+    "description": "Software project (package.json, code_files)",
+    "indicators": [
+      "package.json",
+      "code_files"
+    ]
+  },
+  {
+    "name": "elpriser-sverige",
+    "path": "/home/micke/elpriser-sverige",
+    "type": "Node.js/JavaScript",
+    "description": "Software project (package.json, code_files)",
+    "indicators": [
+      "package.json",
+      "code_files"
+    ]
+  },
+  {
+    "name": "FinRobot",
+    "path": "/home/micke/FinRobot",
+    "type": "Python",
+    "description": "<div align=\"center\"> <img align=\"center\" width=\"30%\" alt=\"image\" src=\"https://github.com/AI4Finance-Foundation/FinGPT/assets/31713746/e0371951-1ce1-488e-aa25-0992dafcc139\"> </div>",
+    "indicators": [
+      "Dockerfile",
+      "requirements.txt",
+      "README.md",
+      "setup.py",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "json-resume",
+    "path": "/home/micke/json-resume",
+    "type": "Node.js/JavaScript",
+    "description": "Software project (Dockerfile, package.json, code_files)",
+    "indicators": [
+      "Dockerfile",
+      "package.json",
+      "code_files"
+    ]
+  },
+  {
+    "name": "market_analysis_tool",
+    "path": "/home/micke/market_analysis_tool",
+    "type": "Python",
+    "description": "Software project (main.py)",
+    "indicators": [
+      "main.py"
+    ]
+  },
+  {
+    "name": "Oatly",
+    "path": "/home/micke/Oatly",
+    "type": "Python",
+    "description": "The Oatly News Tracker is a comprehensive system designed to collect, organize, and display news and information about Oatly from various search engines including Google, Baidu, and Twitter. The syste",
+    "indicators": [
+      "app.py",
+      "README.md",
+      "code_files"
+    ]
+  },
+  {
+    "name": "oatly-oatfinder",
+    "path": "/home/micke/oatly-oatfinder",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "open-resume",
+    "path": "/home/micke/open-resume",
+    "type": "Node.js/JavaScript",
+    "description": "OpenResume is a powerful open-source resume builder and resume parser. The goal of OpenResume is to provide everyone with free access to a modern professional resume design and enable anyone to apply ",
+    "indicators": [
+      "Dockerfile",
+      "README.md",
+      "package.json",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "parsio",
+    "path": "/home/micke/parsio",
+    "type": "Docker",
+    "description": "Software project (Dockerfile, code_files)",
+    "indicators": [
+      "Dockerfile",
+      "code_files"
+    ]
+  },
+  {
+    "name": "pdf-tools",
+    "path": "/home/micke/pdf-tools",
+    "type": "Node.js/JavaScript",
+    "description": "En komplett l\u00f6sning f\u00f6r att ladda upp, extrahera text fr\u00e5n, s\u00f6ka och hantera PDF-filer med Parse Server. Cloud Code \u00e4r redan kopierad till Parse Server-containern:",
+    "indicators": [
+      "README.md",
+      "package.json",
+      "code_files"
+    ]
+  },
+  {
+    "name": "pdf-web",
+    "path": "/home/micke/pdf-web",
+    "type": "Node.js/JavaScript",
+    "description": "Software project (package.json, index.html, code_files)",
+    "indicators": [
+      "package.json",
+      "index.html",
+      "code_files"
+    ]
+  },
+  {
+    "name": "pdf-web-server",
+    "path": "/home/micke/pdf-web-server",
+    "type": "Web/HTML",
+    "description": "Software project (index.html)",
+    "indicators": [
+      "index.html"
+    ]
+  },
+  {
+    "name": "projects",
+    "path": "/home/micke/projects",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "qwen",
+    "path": "/home/micke/qwen",
+    "type": "Python",
+    "description": "Software project (requirements.txt)",
+    "indicators": [
+      "requirements.txt"
+    ]
+  },
+  {
+    "name": "qwen3",
+    "path": "/home/micke/qwen3",
+    "type": "Python",
+    "description": "Software project (Dockerfile, requirements.txt)",
+    "indicators": [
+      "Dockerfile",
+      "requirements.txt"
+    ]
+  },
+  {
+    "name": "Reactive-Resume",
+    "path": "/home/micke/Reactive-Resume",
+    "type": "Node.js/JavaScript",
+    "description": "![Reactive Resume](https://i.imgur.com/FFc4nyZ.jpg) ![App Version](https://img.shields.io/github/package-json/version/AmruthPillai/Reactive-Resume?label=version) [![Docker Pulls](https://img.shields.i",
+    "indicators": [
+      "Dockerfile",
+      "README.md",
+      "package.json",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "rocm",
+    "path": "/opt/rocm",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "rocm-6.3.4",
+    "path": "/opt/rocm-6.3.4",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "sd3-project",
+    "path": "/home/micke/projects/sd3-project",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  },
+  {
+    "name": "swedish-bert-models",
+    "path": "/home/micke/projects/swedish-bert-models",
+    "type": "Python",
+    "description": "**Update 2020-02-26:** Huggingface BERT-base and NER are updated **Update 2020-04-27:** Added some comparisons to NER performance of this and other BERTs **Update 2020-07-03:** You can now [cite](#cit",
+    "indicators": [
+      "requirements.txt",
+      "README.md",
+      ".git"
+    ]
+  },
+  {
+    "name": "text-generation-webui",
+    "path": "/home/micke/text-generation-webui",
+    "type": "Git Repository",
+    "description": "A Gradio web UI for Large Language Models. Its goal is to become the [AUTOMATIC1111/stable-diffusion-webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui) of text generation. [Try the Deep R",
+    "indicators": [
+      "README.md",
+      ".git",
+      "code_files"
+    ]
+  },
+  {
+    "name": "utils",
+    "path": "/home/micke/elpriser-sverige/utils",
+    "type": "Unknown",
+    "description": "Software project (code_files)",
+    "indicators": [
+      "code_files"
+    ]
+  }
+]
