@@ -1,0 +1,31 @@
+[Unit]
+Description=MCP Agents Server
+Documentation=https://github.com/your-repo/mcp-agents-server
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=micke
+WorkingDirectory=/home/micke/claude-env
+Environment=NODE_ENV=production
+Environment=PORT=3111
+EnvironmentFile=-/home/micke/claude-env/.env
+ExecStart=/usr/bin/npm run start
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StartLimitInterval=60s
+StartLimitBurst=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mcp-agents-server
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/home/micke/claude-env
+
+[Install]
+WantedBy=multi-user.target
