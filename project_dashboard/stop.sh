@@ -1,32 +1,27 @@
 #!/bin/bash
 
-# Stop Project Dashboard
 echo "🛑 Stopping Project Dashboard..."
 
-# Find and kill the process
-PIDS=$(pgrep -f "python3.*app.py")
+# Stop systemd service if running
+sudo systemctl stop project-dashboard 2>/dev/null
 
-if [ -z "$PIDS" ]; then
-    echo "ℹ️  Project Dashboard is not running"
-    exit 0
+# Kill any remaining processes on port 6888
+PIDS=$(lsof -ti:6888 2>/dev/null)
+if [ ! -z "$PIDS" ]; then
+    echo "Killing processes on port 6888: $PIDS"
+    kill -9 $PIDS 2>/dev/null
 fi
 
-# Kill the processes
-for PID in $PIDS; do
-    echo "🔪 Killing process $PID"
-    kill $PID
-done
+# Kill any python processes running app.py
+pkill -f "project_dashboard/app.py" 2>/dev/null
 
-# Wait a moment and check
+# Wait a moment
 sleep 2
-REMAINING=$(pgrep -f "python3.*app.py")
 
-if [ -z "$REMAINING" ]; then
-    echo "✅ Project Dashboard stopped successfully!"
+# Check if port is free
+if lsof -i:6888 >/dev/null 2>&1; then
+    echo "❌ Port 6888 still in use"
+    exit 1
 else
-    echo "⚠️  Some processes are still running, force killing..."
-    for PID in $REMAINING; do
-        kill -9 $PID
-    done
-    echo "✅ Project Dashboard force stopped!"
+    echo "✅ Port 6888 is now free"
 fi

@@ -12,6 +12,24 @@
     ]
   },
   {
+    "name": "webgui",
+    "path": "/home/micke/claude-env/webgui",
+    "type": "Full-Stack AI Application",
+    "description": "En komplett lokal LLM+ASR-stack med modern webbgränssnitt, optimerad för AMD ROCm GPU-acceleration. Byggd för svenska språkbehandling med enterprise-ready funktionalitet. FastAPI backend (port 6889) + React TypeScript frontend (port 6899) med centraliserad modellhantering, WebSocket streaming och real-time monitoring.",
+    "indicators": [
+      "README.md",
+      "backend/api_server.py",
+      "frontend/package.json",
+      "backend/requirements.txt",
+      ".git",
+      "code_files"
+    ],
+    "status": "active",
+    "tech_stack": ["Python", "FastAPI", "React", "TypeScript", "ROCm", "SQLite"],
+    "ports": [6889, 6899],
+    "documentation": "http://localhost:8018/technical/webgui-architecture/"
+  },
+  {
     "name": "crewai",
     "path": "/home/micke/crewai",
     "type": "Unknown",
@@ -269,6 +287,106 @@
     "description": "Software project (code_files)",
     "indicators": [
       "code_files"
+    ]
+  },
+  {
+    "name": "docs-site",
+    "path": "/home/micke/claude-env/docs-site",
+    "type": "Documentation Platform",
+    "description": "MkDocs Material-baserad dokumentationssajt med PlantUML-stöd, automatisk navigation och omfattande innehåll. Inkluderar WireGuard VPN-dokumentation, AI-agenter, affärsidéer och teknisk documentation. 51+ sidor organiserade i kategorier med alfabetisk 'Alla Sidor'-funktion.",
+    "indicators": [
+      "mkdocs.yml",
+      "README.md",
+      "docs/",
+      ".venv",
+      ".git"
+    ],
+    "status": "active",
+    "tech_stack": ["Python", "MkDocs", "Material Theme", "PlantUML", "Markdown"],
+    "ports": [6885],
+    "documentation": "http://localhost:6885/",
+    "features": [
+      "Material Design theme",
+      "PlantUML diagram support",
+      "Automatic navigation",
+      "51+ documentation pages",
+      "Alphabetical page index",
+      "Swedish language support",
+      "Git integration"
+    ]
+  },
+  {
+    "name": "hedgedoc",
+    "path": "/opt/hedgedoc",
+    "type": "Collaborative Markdown Editor",
+    "description": "HedgeDoc (CodiMD) självhostade kollaborativ markdown-editor med realtidssamarbete. Perfekt för att skriva dokumentation, anteckningar och tekniska specifikationer som senare kan integreras med MkDocs-systemet.",
+    "indicators": [
+      "docker-compose.yml",
+      "config.json",
+      "data/"
+    ],
+    "status": "active",
+    "tech_stack": ["Node.js", "Docker", "PostgreSQL", "Markdown"],
+    "ports": [3000],
+    "documentation": "http://localhost:3000/",
+    "features": [
+      "Real-time collaboration",
+      "Markdown WYSIWYG editor",
+      "Export to multiple formats",
+      "Image upload support",
+      "User authentication",
+      "Version history",
+      "PlantUML integration"
+    ]
+  },
+  {
+    "name": "plantuml-server",
+    "path": "/opt/plantuml-server",
+    "type": "Diagram Generation Service",
+    "description": "PlantUML-server för att generera UML-diagram, arkitekturdiagram och andra visualiseringar från textbaserade beskrivningar. Integrerad med MkDocs för att automatiskt rendera diagram i dokumentationen.",
+    "indicators": [
+      "docker-compose.yml",
+      "plantuml.jar",
+      "Dockerfile"
+    ],
+    "status": "active",
+    "tech_stack": ["Java", "Docker", "PlantUML"],
+    "ports": [6886],
+    "documentation": "http://localhost:6886/",
+    "features": [
+      "UML diagram generation",
+      "Architecture diagrams",
+      "Sequence diagrams",
+      "Class diagrams",
+      "Network diagrams",
+      "RESTful API",
+      "SVG/PNG output"
+    ]
+  },
+  {
+    "name": "docs-site-external",
+    "path": "/home/micke/claude-env/docs-site",
+    "type": "External Documentation Server",
+    "description": "Externt tillgänglig MkDocs-dokumentationsserver på port 8018. Samma innehåll som den lokala docs-site men konfigurerad för extern åtkomst från andra maskiner i nätverket. Inkluderar alla 51+ dokumentationssidor med PlantUML-stöd.",
+    "indicators": [
+      "mkdocs.yml",
+      "README.md", 
+      "docs/",
+      "start-mkdocs-external.sh"
+    ],
+    "status": "active",
+    "tech_stack": ["Python", "MkDocs", "Material Theme", "PlantUML", "External Access"],
+    "ports": [8018],
+    "documentation": "http://172.16.16.148:8018/",
+    "features": [
+      "External network access",
+      "Same content as local docs-site",
+      "Material Design theme",
+      "PlantUML diagram support",
+      "51+ documentation pages",
+      "Alphabetical page index",
+      "Swedish language support",
+      "Cross-network availability"
     ]
   }
 ]
