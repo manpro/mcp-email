@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import axios from 'axios';
 import { Pool } from 'pg';
 import dotenv from 'dotenv';
-import { registerBrowserReadAgent, registerClaudeCodePromptAgent, registerHealthCheck } from './mcp.config';
+import { registerBrowserReadAgent, registerClaudeCodePromptAgent, registerMKDocsAgent, registerHealthCheck } from './mcp.config';
 
 dotenv.config();
 
@@ -298,6 +298,7 @@ app.post('/agent/weaviate-query', async (req: Request, res: Response) => {
 // Register MCP agents
 registerBrowserReadAgent(app);
 registerClaudeCodePromptAgent(app);
+registerMKDocsAgent(app);
 registerHealthCheck(app);
 
 app.listen(PORT, () => {
@@ -306,6 +307,9 @@ app.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] Weaviate endpoint: ${WEAVIATE_URL}`);
   console.log(`[${new Date().toISOString()}] Browser read endpoint: /agent/browser-read`);
   console.log(`[${new Date().toISOString()}] Claude Code prompt endpoint: /agent/claude-code-prompt`);
+  console.log(`[${new Date().toISOString()}] MKDocs status endpoint: /agent/mkdocs-status`);
+  console.log(`[${new Date().toISOString()}] MKDocs build endpoint: /agent/mkdocs-build`);
+  console.log(`[${new Date().toISOString()}] MKDocs generate endpoint: /agent/mkdocs-generate`);
   console.log(`[${new Date().toISOString()}] Available databases: ${Object.keys(dbMap).join(', ')}`);
   
   process.on('SIGTERM', async () => {
