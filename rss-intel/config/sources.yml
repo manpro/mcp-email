@@ -1,0 +1,103 @@
+rsshub:
+  enabled: true
+  routes:
+    # AI & Machine Learning
+    - "/twitter/user/OpenAI"
+    - "/twitter/user/AnthropicAI"
+    - "/github/trending/daily/python"
+    - "/github/trending/daily/machine-learning"
+    - "/reddit/r/MachineLearning/hot"
+    - "/reddit/r/artificial/hot"
+    - "/producthunt/today"
+    
+    # Crypto & Blockchain
+    - "/twitter/user/VitalikButerin"
+    - "/twitter/user/cz_binance"
+    - "/reddit/r/CryptoCurrency/hot"
+    - "/reddit/r/ethereum/hot"
+    - "/reddit/r/Bitcoin/hot"
+    
+    # Tech & Startups
+    - "/hackernews/best"
+    - "/reddit/r/programming/hot"
+    - "/reddit/r/technology/hot"
+    - "/github/trending/daily"
+    
+    # Finance & Payments
+    - "/reddit/r/fintech/top/week"
+    - "/twitter/user/Visa"
+    - "/twitter/user/Mastercard"
+
+native_feeds:
+  # Payments & Fintech
+  - "https://www.finextra.com/rss/headlines.aspx"
+  - "https://www.finextra.com/rss/payments.aspx"
+  - "https://www.finextra.com/rss/cards.aspx"
+  - "https://www.finextra.com/rss/crypto.aspx"
+  - "https://www.pymnts.com/feed/"
+  - "https://www.thepaypers.com/rss/news"
+  - "https://www.paymentsjournal.com/feed/"
+  - "https://www.bankingtech.com/feed/"
+  - "https://www.fintechfutures.com/feed/"
+  
+  # Swedish Finance
+  - "https://www.riksbank.se/sv/press-och-publicerat/nyheter/rss/"
+  - "https://www.fi.se/sv/om-fi/nyheter/rss.xml"
+  
+  # Crypto & Blockchain
+  - "https://cointelegraph.com/rss"
+  - "https://www.coindesk.com/arc/outboundfeeds/rss/"
+  - "https://bitcoinmagazine.com/.rss/full/"
+  - "https://decrypt.co/feed"
+  - "https://www.theblockcrypto.com/rss.xml"
+  - "https://cryptonews.com/news/feed/"
+  - "https://blockchain.news/rss"
+  - "https://bitcoinist.com/feed/"
+  - "https://www.newsbtc.com/feed/"
+  
+  # AI & Machine Learning
+  - "https://openai.com/blog/rss.xml"
+  - "https://www.anthropic.com/rss.xml"
+  - "https://deepmind.google/blog/rss.xml"
+  - "https://ai.googleblog.com/feeds/posts/default"
+  - "https://blogs.nvidia.com/feed/"
+  - "https://huggingface.co/blog/feed.xml"
+  - "https://www.technologyreview.com/topic/artificial-intelligence/feed"
+  - "https://venturebeat.com/ai/feed/"
+  - "https://www.artificialintelligence-news.com/feed/"
+  - "https://www.marktechpost.com/feed/"
+  
+  # Major Tech News
+  - "https://techcrunch.com/feed/"
+  - "https://www.techmeme.com/feed.xml"
+  - "https://www.theverge.com/rss/index.xml"
+  - "https://arstechnica.com/feed/"
+  - "https://www.wired.com/feed/rss"
+  - "https://feeds.feedburner.com/TechCrunch/startups"
+  - "https://feeds.feedburner.com/TechCrunch/fundings-exits"
+  - "https://thenextweb.com/feed"
+  - "https://www.engadget.com/rss.xml"
+  
+  # Business & Finance Tech
+  - "https://feeds.bloomberg.com/technology/news.rss"
+  - "https://feeds.reuters.com/reuters/technologyNews"
+  - "https://www.ft.com/technology?format=rss"
+  - "https://www.wsj.com/xml/rss/3_7455.xml"
+  
+  # Developer & Open Source
+  - "https://github.blog/feed/"
+  - "https://stackoverflow.blog/feed/"
+  - "https://news.ycombinator.com/rss"
+  - "https://lobste.rs/rss"
+  
+  # Company Blogs (Payments)
+  - "https://stripe.com/blog/feed.rss"
+  - "https://www.adyen.com/blog/rss.xml"
+  - "https://blog.klarna.com/feed/"
+  - "https://squareup.com/blog/rss"
+  - "https://www.paypal.com/stories/rss"
+  
+  # Nordic Tech & Finance
+  - "https://techsavvy.media/feed/"
+  - "https://nordic9.com/feed/"
+  - "https://www.breakit.se/feed/rss"

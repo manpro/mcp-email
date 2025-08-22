@@ -1,0 +1,88 @@
+keywords:
+  # AI and Technology
+  ai: 10
+  artificial intelligence: 10
+  machine learning: 10
+  blockchain: 9
+  crypto: 10
+  cryptocurrency: 10
+  bitcoin: 11
+  ethereum: 10
+  defi: 10
+  nft: 8
+  api: 7
+  integration: 6
+  automation: 7
+  security: 8
+  cybersecurity: 9
+  cloud: 6
+  saas: 6
+  
+  # Payments and Finance
+  payment: 12
+  payments: 12
+  fintech: 10
+  banking: 8
+  transaction: 9
+  settlement: 8
+  checkout: 9
+  digital wallet: 10
+  mobile payment: 10
+  contactless: 8
+  card: 7
+  visa: 15
+  mastercard: 15
+  amex: 12
+  paypal: 12
+  stripe: 14
+  square: 11
+  
+  # Regulation and Compliance
+  regulation: 8
+  compliance: 8
+  gdpr: 7
+  pci: 8
+  kyc: 8
+  aml: 8
+  psd2: 9
+  open banking: 10
+  
+  # Business and Innovation
+  startup: 7
+  innovation: 6
+  digital: 5
+  mobile: 6
+  partnership: 6
+  acquisition: 8
+  investment: 7
+  funding: 8
+  ipo: 9
+  
+source_weights:
+  # High-value financial sources
+  finextra.com: 8
+  thepaypers.com: 6
+  reuters.com: 9
+  bloomberg.com: 7
+  ft.com: 8
+  wsj.com: 8
+  riksbank.se: 10
+  ecb.europa.eu: 10
+  
+  # Tech sources
+  techcrunch.com: 5
+  venturebeat.com: 5
+  ycombinator.com: 6
+  github.com: 6
+  
+  # General sources
+  reddit.com: 4
+  medium.com: 3
+  hackernews: 5
+  
+recency:
+  half_life_hours: 36
+
+thresholds:
+  star: 80
+  interesting: 60

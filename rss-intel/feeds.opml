@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>RSS Intelligence Feeds</title>
+    <dateCreated>Fri, 22 Aug 2025 15:00:00 GMT</dateCreated>
+  </head>
+  <body>
+    <outline text="Payments &amp; Fintech" title="Payments &amp; Fintech">
+      <outline type="rss" text="Finextra Headlines" title="Finextra Headlines" xmlUrl="https://www.finextra.com/rss/headlines.aspx"/>
+      <outline type="rss" text="Finextra Payments" title="Finextra Payments" xmlUrl="https://www.finextra.com/rss/payments.aspx"/>
+      <outline type="rss" text="Finextra Cards" title="Finextra Cards" xmlUrl="https://www.finextra.com/rss/cards.aspx"/>
+      <outline type="rss" text="PYMNTS" title="PYMNTS" xmlUrl="https://www.pymnts.com/feed/"/>
+      <outline type="rss" text="The Paypers" title="The Paypers" xmlUrl="https://www.thepaypers.com/rss/news"/>
+      <outline type="rss" text="Payments Journal" title="Payments Journal" xmlUrl="https://www.paymentsjournal.com/feed/"/>
+      <outline type="rss" text="Stripe Blog" title="Stripe Blog" xmlUrl="https://stripe.com/blog/feed.rss"/>
+      <outline type="rss" text="Adyen Blog" title="Adyen Blog" xmlUrl="https://www.adyen.com/blog/rss.xml"/>
+      <outline type="rss" text="Klarna Blog" title="Klarna Blog" xmlUrl="https://blog.klarna.com/feed/"/>
+    </outline>
+    
+    <outline text="Crypto &amp; Blockchain" title="Crypto &amp; Blockchain">
+      <outline type="rss" text="CoinDesk" title="CoinDesk" xmlUrl="https://www.coindesk.com/arc/outboundfeeds/rss/"/>
+      <outline type="rss" text="Cointelegraph" title="Cointelegraph" xmlUrl="https://cointelegraph.com/rss"/>
+      <outline type="rss" text="Bitcoin Magazine" title="Bitcoin Magazine" xmlUrl="https://bitcoinmagazine.com/.rss/full/"/>
+      <outline type="rss" text="Decrypt" title="Decrypt" xmlUrl="https://decrypt.co/feed"/>
+      <outline type="rss" text="The Block" title="The Block" xmlUrl="https://www.theblockcrypto.com/rss.xml"/>
+      <outline type="rss" text="CryptoNews" title="CryptoNews" xmlUrl="https://cryptonews.com/news/feed/"/>
+    </outline>
+    
+    <outline text="AI &amp; Machine Learning" title="AI &amp; Machine Learning">
+      <outline type="rss" text="OpenAI Blog" title="OpenAI Blog" xmlUrl="https://openai.com/blog/rss.xml"/>
+      <outline type="rss" text="Anthropic Blog" title="Anthropic Blog" xmlUrl="https://www.anthropic.com/rss.xml"/>
+      <outline type="rss" text="DeepMind Blog" title="DeepMind Blog" xmlUrl="https://deepmind.google/blog/rss.xml"/>
+      <outline type="rss" text="Google AI Blog" title="Google AI Blog" xmlUrl="https://ai.googleblog.com/feeds/posts/default"/>
+      <outline type="rss" text="NVIDIA Blog" title="NVIDIA Blog" xmlUrl="https://blogs.nvidia.com/feed/"/>
+      <outline type="rss" text="Hugging Face Blog" title="Hugging Face Blog" xmlUrl="https://huggingface.co/blog/feed.xml"/>
+      <outline type="rss" text="VentureBeat AI" title="VentureBeat AI" xmlUrl="https://venturebeat.com/ai/feed/"/>
+      <outline type="rss" text="MIT Tech Review AI" title="MIT Tech Review AI" xmlUrl="https://www.technologyreview.com/topic/artificial-intelligence/feed"/>
+      <outline type="rss" text="AI News" title="AI News" xmlUrl="https://www.artificialintelligence-news.com/feed/"/>
+    </outline>
+    
+    <outline text="Tech News" title="Tech News">
+      <outline type="rss" text="TechCrunch" title="TechCrunch" xmlUrl="https://techcrunch.com/feed/"/>
+      <outline type="rss" text="The Verge" title="The Verge" xmlUrl="https://www.theverge.com/rss/index.xml"/>
+      <outline type="rss" text="Ars Technica" title="Ars Technica" xmlUrl="https://arstechnica.com/feed/"/>
+      <outline type="rss" text="Wired" title="Wired" xmlUrl="https://www.wired.com/feed/rss"/>
+      <outline type="rss" text="Engadget" title="Engadget" xmlUrl="https://www.engadget.com/rss.xml"/>
+      <outline type="rss" text="Hacker News" title="Hacker News" xmlUrl="https://news.ycombinator.com/rss"/>
+      <outline type="rss" text="GitHub Blog" title="GitHub Blog" xmlUrl="https://github.blog/feed/"/>
+      <outline type="rss" text="Stack Overflow Blog" title="Stack Overflow Blog" xmlUrl="https://stackoverflow.blog/feed/"/>
+    </outline>
+    
+    <outline text="Business Tech" title="Business Tech">
+      <outline type="rss" text="Bloomberg Tech" title="Bloomberg Tech" xmlUrl="https://feeds.bloomberg.com/technology/news.rss"/>
+      <outline type="rss" text="Reuters Tech" title="Reuters Tech" xmlUrl="https://feeds.reuters.com/reuters/technologyNews"/>
+    </outline>
+    
+    <outline text="Swedish Finance" title="Swedish Finance">
+      <outline type="rss" text="Riksbanken" title="Riksbanken" xmlUrl="https://www.riksbank.se/sv/press-och-publicerat/nyheter/rss/"/>
+      <outline type="rss" text="Breakit" title="Breakit" xmlUrl="https://www.breakit.se/feed/rss"/>
+    </outline>
+  </body>
+</opml>

@@ -1,0 +1,90 @@
+entities:
+  # Swedish Financial
+  - "SEB"
+  - "Swedbank"
+  - "Nordea"
+  - "Handelsbanken"
+  - "Riksbank"
+  - "Klarna"
+  - "Swish"
+  - "iZettle"
+  
+  # Global Payment Processors
+  - "Visa"
+  - "Mastercard"
+  - "American Express"
+  - "Discover"
+  - "UnionPay"
+  
+  # Fintech Companies
+  - "PayPal"
+  - "Stripe"
+  - "Square"
+  - "Adyen"
+  - "Worldpay"
+  - "Ingenico"
+  - "Nets"
+  - "Bambora"
+  
+  # Digital Banks & Neobanks
+  - "Revolut"
+  - "Wise"
+  - "TransferWise"
+  - "N26"
+  - "Monzo"
+  - "Starling"
+  - "Chime"
+  - "Nubank"
+  
+  # Cryptocurrency
+  - "Coinbase"
+  - "Binance"
+  - "Kraken"
+  - "FTX"
+  - "Gemini"
+  - "BitPay"
+  
+  # Tech Giants in Payments
+  - "Apple Pay"
+  - "Google Pay"
+  - "Samsung Pay"
+  - "Amazon Pay"
+  - "Meta Pay"
+  - "Facebook Pay"
+  - "WhatsApp Pay"
+  - "Alipay"
+  - "WeChat Pay"
+  
+  # AI Companies
+  - "OpenAI"
+  - "Anthropic"
+  - "DeepMind"
+  - "Stability AI"
+  - "Hugging Face"
+  
+  # Emerging Companies
+  - "Plaid"
+  - "Yodlee"
+  - "TrueLayer"
+  - "GoCardless"
+  - "Checkout.com"
+  - "Rapyd"
+  - "Marqeta"
+
+weights:
+  default: 12
+  
+  # Higher weights for key players
+  "Klarna": 15
+  "Stripe": 14
+  "Visa": 16
+  "Mastercard": 16
+  "PayPal": 13
+  "OpenAI": 16
+  "Anthropic": 15
+  "Riksbank": 14
+  "SEB": 13
+  "Swedbank": 13
+
+labels:
+  prefix: "watch:"

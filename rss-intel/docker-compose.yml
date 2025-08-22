@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rss-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rss}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-rssintel}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./ops/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rss}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  freshrss:
+    image: freshrss/freshrss:latest
+    container_name: rss-freshrss
+    environment:
+      TZ: Europe/Stockholm
+      CRON_MIN: '*/10'
+      FRESHRSS_INSTALL: |
+        --default-user ${FRESHRSS_ADMIN_USER:-admin}
+        --db-type pgsql
+        --db-host postgres
+        --db-user ${POSTGRES_USER:-rss}
+        --db-password ${POSTGRES_PASSWORD:-changeme}
+        --db-base ${POSTGRES_DB:-rssintel}
+        --db-prefix freshrss_
+        --api-enabled
+        --base-url http://localhost:8081
+    volumes:
+      - freshrss_data:/var/www/FreshRSS/data
+      - freshrss_extensions:/var/www/FreshRSS/extensions
+    ports:
+      - "8081:80"
+    networks:
+      - internal
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  rsshub:
+    image: diygod/rsshub:latest
+    container_name: rss-rsshub
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      CACHE_EXPIRE: 600
+      REQUEST_TIMEOUT: 10000
+    ports:
+      - "1200:1200"
+    networks:
+      - internal
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rss-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rss}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-rssintel}
+      FRESHRSS_BASE_URL: ${FRESHRSS_BASE_URL:-http://freshrss}
+      FRESHRSS_API_USER: ${FRESHRSS_API_USER:-ai}
+      FRESHRSS_API_PASS: ${FRESHRSS_API_PASS:-strongpassword}
+      RSSHUB_BASE_URL: http://rsshub:1200
+      BACKEND_PORT: ${BACKEND_PORT:-8000}
+      SCORING_HALF_LIFE_HOURS: ${SCORING_HALF_LIFE_HOURS:-36}
+      SCORING_STAR_THRESHOLD: ${SCORING_STAR_THRESHOLD:-80}
+      SCORING_INTEREST_THRESHOLD: ${SCORING_INTEREST_THRESHOLD:-60}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+    volumes:
+      - ./config:/app/config
+    ports:
+      - "8000:8000"
+    networks:
+      - internal
+    depends_on:
+      - postgres
+      - freshrss
+      - rsshub
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: rss-web
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      BACKEND_URL: http://backend:8000
+      NODE_ENV: development
+    ports:
+      - "3001:3000"
+    networks:
+      - internal
+    depends_on:
+      - backend
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    command: npm run dev
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  freshrss_data:
+  freshrss_extensions:
