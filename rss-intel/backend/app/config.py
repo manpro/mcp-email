@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     # RSSHub
     rsshub_base_url: str = "http://rsshub:1200"
     
+    # Weaviate
+    weaviate_url: str = "http://weaviate:8080"
+    
     # Backend
     backend_port: int = 8000
     
@@ -24,7 +27,15 @@ class Settings(BaseSettings):
     
     # Scheduler
     scheduler_enabled: bool = True
-    scheduler_interval_minutes: int = 10
+    scheduler_interval_minutes: int = 5  # Run every 5 minutes
+    
+    # Content Extraction
+    content_extraction_enabled: bool = True
+    content_extraction_min_score: int = 0  # Extract all articles
+    content_extraction_batch_size: int = 50  # Increase batch size
+    content_extraction_concurrent: int = 10  # More concurrent requests
+    content_extraction_rate_limit: float = 2.0  # Faster rate limit
+    content_extraction_interval_minutes: int = 30  # for standalone worker
     
     # Paths
     config_dir: str = "/app/config"
