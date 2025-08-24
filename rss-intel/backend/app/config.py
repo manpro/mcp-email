@@ -37,6 +37,23 @@ class Settings(BaseSettings):
     content_extraction_rate_limit: float = 2.0  # Faster rate limit
     content_extraction_interval_minutes: int = 30  # for standalone worker
     
+    # Image Proxy
+    image_proxy_cache_dir: str = "/data/image-cache"
+    image_proxy_max_bytes: int = 5242880  # 5MB
+    image_proxy_timeout_sec: int = 8
+    image_proxy_connect_sec: int = 3
+    image_proxy_user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/119"
+    image_proxy_send_referer: bool = True
+    image_min_width: int = 320
+    image_min_height: int = 180
+    image_aspect_min: float = 0.4
+    image_aspect_max: float = 3.0
+    image_enable_revalidation: bool = True
+    image_revalidate_after_hours: int = 168  # 7 days
+    image_playwright_enabled: bool = True
+    image_playwright_max_concurrency: int = 1
+    image_domain_rules_path: str = "/app/config/image_rules.yml"
+    
     # Paths
     config_dir: str = "/app/config"
     

@@ -4,12 +4,24 @@ A self-hosted intelligent RSS aggregation and scoring system that automatically 
 
 ## Features
 
+### Core Intelligence
 - **Smart Scoring**: Articles are automatically scored based on keywords, source reputation, watchlist entities, and recency
+- **Image Extraction**: Automatically extracts and caches article images from RSS content, enclosures, and OpenGraph tags
+- **Intelligent Labeling**: Automatically applies labels and stars articles based on scoring thresholds
+- **Watchlist Tracking**: Track mentions of specific companies, products, or people
+
+### User Interface
+- **Modern UI**: Clean, responsive interface built with Next.js 14 and Tailwind CSS
+- **Dual View Modes**: Toggle between compact list view and rich card view with images
+- **Virtualization**: Smooth scrolling through thousands of articles without performance loss
+- **Advanced Filtering**: Filter by score, source, labels, search terms, and image presence
+- **URL Synchronization**: All filters and view preferences are preserved in URLs for sharing
+- **Tooltips & Feedback**: Detailed score breakdowns and optimistic UI updates
+
+### Integration & Performance
 - **FreshRSS Integration**: Uses FreshRSS as the RSS aggregator with full Reader API compatibility
 - **RSSHub Support**: Automatically imports feeds from RSSHub for sites without native RSS
-- **Intelligent Labeling**: Automatically applies labels and stars articles based on scoring thresholds
-- **Web Interface**: Clean, responsive UI for browsing, filtering, and managing articles
-- **Watchlist Tracking**: Track mentions of specific companies, products, or people
+- **Image Proxy**: Intelligent image caching with blurhash placeholders and revalidation
 - **Real-time Updates**: Scheduled background processing with manual refresh capability
 
 ## Quick Start
@@ -66,7 +78,11 @@ Articles are scored using multiple signals:
    - Domain-based scoring
    - Higher weights for trusted sources
 
-4. **Recency Decay** (Multiplier: 0.1-1.0)
+4. **Image Bonus** (+3 points)
+   - Bonus for articles with extracted images
+   - Encourages visually rich content
+
+5. **Recency Decay** (Multiplier: 0.1-1.0)
    - Exponential decay based on article age
    - Configurable half-life (default: 36 hours)
 
@@ -94,6 +110,14 @@ FRESHRSS_API_PASS=strongpassword
 
 # Scheduler
 SCHEDULER_ENABLED=true
+
+# Image Processing
+IMAGE_PROXY_CACHE_DIR=/data/image-cache
+IMAGE_PROXY_MAX_BYTES=5242880      # 5MB
+IMAGE_PROXY_TIMEOUT_SEC=8
+IMAGE_PROXY_CONNECT_SEC=3
+IMAGE_MIN_WIDTH=320
+IMAGE_MIN_HEIGHT=180
 ```
 
 ### Scoring Configuration
@@ -150,19 +174,36 @@ rsshub:
 
 ### Web Interface
 
-1. **Browse Articles**: View scored articles in a sortable table
-2. **Filter & Search**: Filter by score, source, labels, or search text
-3. **Quick Actions**: Star, label, or mark articles as read
-4. **Manual Refresh**: Trigger immediate feed polling and scoring
+#### View Modes
+- **List View**: Compact table with image thumbnails, perfect for quick scanning
+- **Card View**: Rich cards with full images, titles, and content previews
+- **Virtualization**: Smooth scrolling through thousands of articles
+
+#### Advanced Features
+- **Smart Filtering**: Filter by score thresholds, sources, labels, search terms, and image presence
+- **URL Sharing**: All filter states and view preferences are preserved in shareable URLs  
+- **Tooltips**: Hover over scores to see detailed breakdowns (keywords, source, recency, image bonus)
+- **Optimistic Updates**: Actions like starring or labeling update instantly with toast feedback
+- **Image Toggle**: Quick switch to show only articles with images
+
+#### Core Actions
+1. **Browse Articles**: View scored articles in your preferred layout
+2. **Filter & Search**: Use the top bar to narrow down content
+3. **Quick Actions**: Star, label, or mark articles as read with single clicks
+4. **Manual Refresh**: Trigger immediate feed polling with image extraction
+5. **Copy Links**: Share filtered views with team members
 
 ### API Endpoints
 
 ```bash
-# Get articles with filtering
-curl "http://localhost:8000/items?min_score=70&source=finextra.com"
+# Get articles with filtering (including image filter)
+curl "http://localhost:8000/items?min_score=70&has_image=true&source=finextra.com"
 
 # Get single article
 curl "http://localhost:8000/items/entry123"
+
+# Get cached images
+curl "http://localhost:8000/img/ab/cd/hash123.jpg"
 
 # Star an article
 curl -X POST "http://localhost:8000/items/entry123/decide" \
@@ -206,8 +247,17 @@ make migrate
 # Seed initial data and config
 make seed
 
-# Manual refresh
+# Manual refresh with image extraction
 make refresh
+
+# Show image cache information
+make cache-info
+
+# Clear image cache
+make clear-cache
+
+# Revalidate and recache all images
+make recache-images
 
 # Run tests
 make test

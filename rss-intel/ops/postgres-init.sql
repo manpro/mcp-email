@@ -3,6 +3,7 @@
 -- Create extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+-- CREATE EXTENSION IF NOT EXISTS vector; -- Not needed, using Weaviate for vectors
 
 -- Create custom types
 CREATE TYPE article_flag AS ENUM ('hot', 'interesting', 'archived', 'read');

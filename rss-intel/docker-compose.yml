@@ -81,8 +81,19 @@ services:
       SCORING_STAR_THRESHOLD: ${SCORING_STAR_THRESHOLD:-80}
       SCORING_INTEREST_THRESHOLD: ${SCORING_INTEREST_THRESHOLD:-60}
       SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+      IMAGE_PROXY_CACHE_DIR: /data/image-cache
+      IMAGE_PROXY_MAX_BYTES: ${IMAGE_PROXY_MAX_BYTES:-5242880}
+      IMAGE_PROXY_TIMEOUT_SEC: ${IMAGE_PROXY_TIMEOUT_SEC:-8}
+      IMAGE_PROXY_CONNECT_SEC: ${IMAGE_PROXY_CONNECT_SEC:-3}
+      IMAGE_PROXY_USER_AGENT: ${IMAGE_PROXY_USER_AGENT:-RSSIntelBot/1.0}
+      IMAGE_MIN_WIDTH: ${IMAGE_MIN_WIDTH:-320}
+      IMAGE_MIN_HEIGHT: ${IMAGE_MIN_HEIGHT:-180}
+      IMAGE_ENABLE_REVALIDATION: ${IMAGE_ENABLE_REVALIDATION:-true}
+      IMAGE_REVALIDATE_AFTER_HOURS: ${IMAGE_REVALIDATE_AFTER_HOURS:-168}
+      WEAVIATE_URL: http://weaviate:8080
     volumes:
       - ./config:/app/config
+      - image_cache:/data/image-cache
     ports:
       - "8000:8000"
     networks:
@@ -100,6 +111,7 @@ services:
     container_name: rss-web
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      VITE_API_URL: http://localhost:8000
       BACKEND_URL: http://backend:8000
       NODE_ENV: development
     ports:
@@ -113,11 +125,49 @@ services:
       - /app/node_modules
     command: npm run dev
 
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.26.3
+    container_name: rss-weaviate
+    environment:
+      CLUSTER_HOSTNAME: 'node1'
+      QUERY_DEFAULTS_LIMIT: 20
+      DEFAULT_VECTORIZER_MODULE: 'none'
+      ENABLE_MODULES: 'backup-filesystem,offload-s3'
+      BACKUP_FILESYSTEM_PATH: '/var/lib/weaviate/backups'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      LOG_LEVEL: 'info'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    ports:
+      - "8095:8080"
+      - "50051:50051"
+    networks:
+      - internal
+    restart: unless-stopped
+
 networks:
   internal:
     driver: bridge
 
 volumes:
   postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/data/rss-intel/postgres
   freshrss_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/data/rss-intel/freshrss
   freshrss_extensions:
+  image_cache:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/data/rss-intel/images
+  weaviate_data:

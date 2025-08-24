@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { Toaster } from '@/components/ui/toaster'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'RSS Intelligence Dashboard',
   description: 'Smart RSS feed aggregation and scoring',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({
@@ -34,6 +39,7 @@ export default function RootLayout({
             {children}
           </main>
         </div>
+        <Toaster />
       </body>
     </html>
   )

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import ArticleReader from './ArticleReader';
 import { SearchTab } from './SearchTab';
 import { AskTab } from './AskTab';
+import { SpotlightTab } from './SpotlightTab';
 import { GlobalSearch } from './GlobalSearch';
 
 export default function Dashboard() {
@@ -29,13 +30,13 @@ export default function Dashboard() {
   const [searchInput, setSearchInput] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const pageSize = 200;
   
   const { filters, updateFilters, clearFilters, copyLink } = useUrlSync();
   const { toast } = useToast();
 
   // Tab management
-  type TabType = 'browse' | 'recommended' | 'search' | 'ask';
+  type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight';
   const currentTab: TabType = (filters.tab as TabType) || 'browse';
 
   // Load config on mount
@@ -281,15 +282,22 @@ export default function Dashboard() {
   };
 
   const handleViewChange = (view: ViewMode) => {
+    setCurrentView(view);
     updateFilters({ view });
     // Store preference in localStorage
     localStorage.setItem('rss-intel-view', view);
   };
 
-  // Get view mode from URL or localStorage
-  const currentView: ViewMode = filters.view || 
-    (typeof window !== 'undefined' ? localStorage.getItem('rss-intel-view') as ViewMode : null) || 
-    'list';
+  // Get view mode with proper SSR handling
+  const [currentView, setCurrentView] = useState<ViewMode>('list');
+  
+  useEffect(() => {
+    // Set view from URL or localStorage after hydration
+    const viewFromUrl = filters.view;
+    const viewFromStorage = typeof window !== 'undefined' ? localStorage.getItem('rss-intel-view') as ViewMode : null;
+    const finalView = viewFromUrl || viewFromStorage || 'list';
+    setCurrentView(finalView);
+  }, [filters.view]);
 
   // Get image toggle state from localStorage
   const [imageMode, setImageMode] = useState(false);
@@ -370,6 +378,14 @@ export default function Dashboard() {
           >
             <MessageSquare className="h-4 w-4" />
             Ask AI
+          </Button>
+          <Button
+            variant={currentTab === 'spotlight' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'spotlight' })}
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="h-4 w-4 text-amber-500" />
+            Spotlight
           </Button>
         </div>
 
@@ -594,6 +610,10 @@ export default function Dashboard() {
         ) : currentTab === 'ask' ? (
           <div className="p-4 overflow-y-auto h-full">
             <AskTab />
+          </div>
+        ) : currentTab === 'spotlight' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <SpotlightTab />
           </div>
         ) : null}
       </div>

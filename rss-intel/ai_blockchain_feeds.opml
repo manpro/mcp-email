@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>AI Research & Blockchain RSS Feeds</title>
+    <dateCreated>2025-08-23</dateCreated>
+    <ownerName>RSS Intelligence Dashboard</ownerName>
+  </head>
+  <body>
+    <outline text="AI Research &amp; Science" title="AI Research &amp; Science">
+      
+      <outline text="arXiv - Machine Learning &amp; AI" title="arXiv - Machine Learning &amp; AI">
+        <outline type="rss" text="arXiv - Computer Science: Machine Learning" title="arXiv cs.LG" xmlUrl="https://rss.arxiv.org/rss/cs.LG" htmlUrl="https://arxiv.org/list/cs.LG/recent"/>
+        <outline type="rss" text="arXiv - Computer Science: Artificial Intelligence" title="arXiv cs.AI" xmlUrl="https://rss.arxiv.org/rss/cs.AI" htmlUrl="https://arxiv.org/list/cs.AI/recent"/>
+        <outline type="rss" text="arXiv - Computer Science: Computation and Language" title="arXiv cs.CL" xmlUrl="https://rss.arxiv.org/rss/cs.CL" htmlUrl="https://arxiv.org/list/cs.CL/recent"/>
+        <outline type="rss" text="arXiv - Computer Science: Computer Vision" title="arXiv cs.CV" xmlUrl="https://rss.arxiv.org/rss/cs.CV" htmlUrl="https://arxiv.org/list/cs.CV/recent"/>
+        <outline type="rss" text="arXiv - Statistics: Machine Learning" title="arXiv stat.ML" xmlUrl="https://rss.arxiv.org/rss/stat.ML" htmlUrl="https://arxiv.org/list/stat.ML/recent"/>
+        <outline type="rss" text="arXiv - Combined AI/ML/Stats" title="arXiv Combined" xmlUrl="https://rss.arxiv.org/rss/cs.AI+cs.LG+stat.ML" htmlUrl="https://arxiv.org/multi?group=cs&amp;/list/cs.AI,cs.LG,stat.ML/recent"/>
+      </outline>
+      
+      <outline text="Peer-Reviewed Journals" title="Peer-Reviewed Journals">
+        <outline type="rss" text="Journal of Machine Learning Research (JMLR)" title="JMLR" xmlUrl="https://www.jmlr.org/jmlr.xml" htmlUrl="https://www.jmlr.org/"/>
+        <outline type="rss" text="Nature - Machine Learning (Topic)" title="Nature ML Topic" xmlUrl="https://www.nature.com/subjects/machine-learning.rss" htmlUrl="https://www.nature.com/subjects/machine-learning"/>
+        <outline type="rss" text="Nature Machine Intelligence" title="Nature Machine Intelligence" xmlUrl="https://www.nature.com/natmachintell.rss" htmlUrl="https://www.nature.com/natmachintell"/>
+      </outline>
+      
+      <outline text="University &amp; Research News" title="University &amp; Research News">
+        <outline type="rss" text="MIT News - Machine Learning" title="MIT ML News" xmlUrl="https://news.mit.edu/topic/mitmachine-learning-rss.xml" htmlUrl="https://news.mit.edu/topic/machine-learning"/>
+        <outline type="rss" text="ScienceDaily - Artificial Intelligence" title="ScienceDaily AI" xmlUrl="https://www.sciencedaily.com/rss/computers_math/artificial_intelligence.xml" htmlUrl="https://www.sciencedaily.com/news/computers_math/artificial_intelligence/"/>
+      </outline>
+      
+    </outline>
+    
+    <outline text="Blockchain &amp; Cryptography" title="Blockchain &amp; Cryptography">
+      
+      <outline text="Cryptography Research" title="Cryptography Research">
+        <outline type="rss" text="IACR Cryptology ePrint Archive" title="IACR ePrint" xmlUrl="https://eprint.iacr.org/rss/" htmlUrl="https://eprint.iacr.org/"/>
+      </outline>
+      
+      <outline text="Ethereum" title="Ethereum">
+        <outline type="rss" text="Ethereum Foundation Blog" title="Ethereum Blog" xmlUrl="https://blog.ethereum.org/en/feed.xml" htmlUrl="https://blog.ethereum.org/"/>
+        <outline type="rss" text="Ethereum Research Forum" title="Ethereum Research" xmlUrl="https://ethresear.ch/latest.rss" htmlUrl="https://ethresear.ch/"/>
+      </outline>
+      
+      <outline text="Bitcoin" title="Bitcoin">
+        <outline type="rss" text="Bitcoin Core Blog" title="Bitcoin Core" xmlUrl="https://bitcoincore.org/en/rss.xml" htmlUrl="https://bitcoincore.org/"/>
+        <outline type="rss" text="Bitcoin-dev Mailing List" title="Bitcoin-dev" xmlUrl="https://www.mail-archive.com/bitcoin-dev@lists.linuxfoundation.org/maillist.xml" htmlUrl="https://www.mail-archive.com/bitcoin-dev@lists.linuxfoundation.org/"/>
+      </outline>
+      
+    </outline>
+  </body>
+</opml>

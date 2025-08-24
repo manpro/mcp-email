@@ -86,7 +86,8 @@ class ScoringEngine:
                        title: str, 
                        content: str, 
                        source: str, 
-                       published_at: datetime) -> Tuple[int, Dict[str, Any], List[str], List[str]]:
+                       published_at: datetime,
+                       has_image: bool = False) -> Tuple[int, Dict[str, Any], List[str], List[str]]:
         """
         Calculate article score based on multiple signals
         Returns: (total_score, score_breakdown, topics, matched_entities)
@@ -141,14 +142,26 @@ class ScoringEngine:
         
         scores["source"] = source_score
         
-        # 4. Recency decay
+        # 4. Image bonus
+        image_bonus = 3 if has_image else 0
+        scores["image_bonus"] = image_bonus
+        
+        # 5. Recency decay
         age_hours = (datetime.now(timezone.utc) - published_at).total_seconds() / 3600
+        
+        # Clamp age_hours to reasonable bounds to prevent overflow
+        # Articles from future get age_hours = 0, articles older than 30 days get heavily penalized
+        age_hours = max(0, min(age_hours, 30 * 24))  # Clamp between 0 and 30 days
+        
         half_life = self.scoring_config.get("recency", {}).get("half_life_hours", 36)
         recency_factor = math.exp(-age_hours / half_life)
         
         # Apply recency as a multiplier to the base score
         base_score = sum(scores.values())
         total_score = round(base_score * recency_factor)
+        
+        # Prevent database integer overflow (PostgreSQL integer max is ~2.1 billion)
+        total_score = min(total_score, 2_000_000_000)
         
         scores["recency_factor"] = round(recency_factor * 100) / 100
         scores["base_score"] = base_score

@@ -1,0 +1,336 @@
+# Domain-specific image extraction rules
+domains:
+  "finextra.com":
+    allowed_patterns:
+      - "finextra-images/"
+      - "/top_pics/"
+    blocked_patterns:
+      - "logo"
+      - "badge"
+      - "avatar"
+    require_referer: true
+    min_width: 400
+    min_height: 200
+    selectors:
+      - ".article__image img"
+      - ".hero-image img"
+    
+  "techcrunch.com":
+    allowed_patterns:
+      - "wp-content/uploads"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+      - "sprite"
+    amp_path_hint: "?amp=1"
+    min_width: 480
+    min_height: 270
+    
+  "theverge.com":
+    allowed_patterns:
+      - "cdn.vox-cdn.com"
+    blocked_patterns:
+      - "logo"
+      - "avatar"
+      - "badge"
+    selectors:
+      - ".e-image img"
+      - ".c-picture img"
+    
+  "youtube.com":
+    youtube_extract: true
+    blocked_patterns:
+      - "default.jpg"  # Low quality thumbnails
+    
+  # Newsletter domains
+  "mailchimp.com":
+    newsletter_support: true
+    cid_extract: true
+    
+  "substack.com":
+    newsletter_support: true
+    selectors:
+      - ".post-header img"
+      - ".image-container img"
+      
+  # Major tech/crypto news sites
+  "wired.com":
+    allowed_patterns:
+      - "media.wired.com"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".hero img"
+      - ".featured-image img"
+      - ".lede-feature img"
+    min_width: 640
+    require_referer: true
+    
+  "cointelegraph.com": 
+    allowed_patterns:
+      - "images.cointelegraph.com"
+    blocked_patterns:
+      - "logo"
+      - "sprite"
+    selectors:
+      - ".post-cover img"
+      - ".post-image img"
+      - ".article-image img"
+    min_width: 600
+    require_referer: true
+    
+  "coindesk.com":
+    allowed_patterns:
+      - "www.coindesk.com/resizer"
+      - "cloudfront.net"
+    blocked_patterns:
+      - "logo"
+      - "favicon"
+    selectors:
+      - ".hero-image img"
+      - ".featured-image img"
+      - ".article-hero img"
+    min_width: 640
+    require_referer: true
+    
+  "cryptonews.com":
+    allowed_patterns:
+      - "cryptonews.com/wp-content"
+    blocked_patterns:
+      - "logo"
+      - "avatar"
+    selectors:
+      - ".featured-image img"
+      - ".post-thumbnail img"
+      - ".entry-image img"
+    min_width: 500
+    
+  "decrypt.co":
+    allowed_patterns:
+      - "decrypt.co/wp-content"
+      - "assets.decrypt.co"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".hero-image img"
+      - ".featured-media img"
+      - ".post-image img"
+    min_width: 640
+    
+  "thedefiant.io":
+    allowed_patterns:
+      - "thedefiant.io/wp-content"
+      - "images.thedefiant.io"
+    blocked_patterns:
+      - "logo"
+      - "badge"
+    selectors:
+      - ".featured-image img"
+      - ".hero-image img"
+      - ".post-header img"
+    min_width: 600
+    
+  "crypto.news":
+    allowed_patterns:
+      - "crypto.news/wp-content"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".featured-image img"
+      - ".post-thumbnail img"
+      - ".entry-image img"
+    min_width: 500
+    
+  "openai.com":
+    allowed_patterns:
+      - "cdn.openai.com"
+      - "images.openai.com"
+    blocked_patterns:
+      - "logo"
+      - "favicon"
+    selectors:
+      - ".hero img"
+      - ".featured-image img"
+      - ".post-header img"
+    min_width: 640
+    require_referer: true
+    
+  "huggingface.co":
+    allowed_patterns:
+      - "huggingface.co/datasets"
+      - "cdn-thumbnails.huggingface.co"
+    blocked_patterns:
+      - "avatar"
+      - "logo"
+    selectors:
+      - ".hero img"
+      - ".model-image img"
+      - ".dataset-image img"
+    min_width: 400
+    
+  "nature.com":
+    allowed_patterns:
+      - "nature.com/articles"
+      - "media.springernature.com"
+    blocked_patterns:
+      - "logo"
+      - "sprite"
+    selectors:
+      - ".c-article-header img"
+      - ".c-article-media img"
+      - ".featured-image img"
+    min_width: 500
+    require_referer: true
+    
+  "arstechnica.com":
+    allowed_patterns:
+      - "cdn.arstechnica.net"
+    blocked_patterns:
+      - "logo"
+      - "sprite"
+    selectors:
+      - ".hero img"
+      - ".article-image img"
+      - ".listing-image img"
+    min_width: 640
+    require_referer: true
+    
+  "theblock.co":
+    allowed_patterns:
+      - "www.theblock.co/assets"
+      - "images.theblock.co"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".hero-image img"
+      - ".featured-image img"
+      - ".post-image img"
+    min_width: 600
+    require_referer: true
+    
+  "towardsdatascience.com":
+    allowed_patterns:
+      - "miro.medium.com"
+      - "cdn-images-1.medium.com"
+    blocked_patterns:
+      - "logo"
+      - "avatar"
+    selectors:
+      - ".hero img"
+      - ".featured-image img"
+      - ".post-header img"
+    min_width: 500
+    
+  "beincrypto.com":
+    allowed_patterns:
+      - "beincrypto.com/wp-content"
+    blocked_patterns:
+      - "logo"
+      - "badge"
+    selectors:
+      - ".featured-image img"
+      - ".post-thumbnail img"
+      - ".hero-image img"
+    min_width: 600
+    
+  "bitcoinist.com":
+    allowed_patterns:
+      - "bitcoinist.com/wp-content"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".featured-image img"
+      - ".post-image img"
+      - ".article-header img"
+    min_width: 500
+    
+  "finextra.com":
+    allowed_patterns:
+      - "finextra-images/"
+      - "/top_pics/"
+    blocked_patterns:
+      - "logo"
+      - "badge"
+      - "avatar"
+    require_referer: true
+    min_width: 400
+    min_height: 200
+    selectors:
+      - ".article__image img"
+      - ".hero-image img"
+      - ".news-image img"
+      
+  "blog.ethereum.org":
+    allowed_patterns:
+      - "blog.ethereum.org/img"
+      - "ethereum.org/static"
+    blocked_patterns:
+      - "logo"
+      - "icon"
+    selectors:
+      - ".hero img"
+      - ".featured-image img"
+      - ".post-image img"
+    min_width: 500
+    
+  "crypto-reporter.com":
+    allowed_patterns:
+      - "crypto-reporter.com/wp-content"
+    blocked_patterns:
+      - "logo"
+      - "badge"
+    selectors:
+      - ".featured-image img"
+      - ".post-thumbnail img"
+      - ".entry-image img"
+    min_width: 500
+
+# Global rules
+global:
+  blocked_patterns:
+    - "logo"
+    - "sprite" 
+    - "icon"
+    - "favicon"
+    - "badge"
+    - "avatar"
+    - "placeholder"
+    - "loading"
+    - "ads"
+    - "advertisement"
+    - "tracker"
+    
+  tracking_params:
+    - "utm_"
+    - "fbclid"
+    - "gclid" 
+    - "ref="
+    - "source="
+    - "campaign="
+    - "_gl="
+    - "mc_cid="
+    - "mc_eid="
+    
+  min_dimensions:
+    width: 320
+    height: 180
+    
+  aspect_ratios:
+    min: 0.4  # 2:5 portrait
+    max: 3.0  # 3:1 landscape
+    
+  mime_types:
+    - "image/jpeg"
+    - "image/png" 
+    - "image/webp"
+    - "image/gif"
+    
+  user_agents:
+    default: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/119"
+    facebook: "facebookexternalhit/1.1"
+    twitter: "Twitterbot/1.0"

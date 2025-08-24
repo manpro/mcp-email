@@ -10,6 +10,8 @@ from datetime import datetime, timezone
 from app.store import ArticleStore
 from app.deps import get_db
 from app.scoring import ScoringEngine
+from app.images import ImageProcessor
+import asyncio
 
 # Test feeds
 TEST_FEEDS = [
@@ -20,13 +22,14 @@ TEST_FEEDS = [
     ("https://arstechnica.com/feed/", "Ars Technica"),
 ]
 
-def main():
-    print("🚀 Direct RSS import and scoring (inside Docker)...")
+async def main():
+    print("🚀 Direct RSS import and scoring with images (inside Docker)...")
     print("=" * 70)
     
     db = next(get_db())
     store = ArticleStore(db)
     scorer = ScoringEngine()
+    image_processor = ImageProcessor()
     
     total_articles = 0
     scored_articles = 0
@@ -84,11 +87,43 @@ def main():
                         content_text = ' '.join(content_text.split())
                     else:
                         content_text = ""
+                    
+                    # Extract image
+                    image_meta = None
+                    image_data = {}
+                    try:
+                        image_candidate = image_processor.pick_primary_image(entry)
+                        if image_candidate:
+                            print(f"     🖼️ Found image candidate: {image_candidate.url[:80]}...")
+                            image_meta = await image_processor.fetch_and_cache(
+                                image_candidate.url, url
+                            )
+                            if image_meta:
+                                image_data = {
+                                    "image_src_url": image_candidate.url,
+                                    "image_proxy_path": image_meta.proxy_path,
+                                    "image_width": image_meta.width,
+                                    "image_height": image_meta.height,
+                                    "image_blurhash": image_meta.blurhash_value,
+                                    "has_image": True
+                                }
+                                print(f"     ✅ Image cached: {image_meta.width}x{image_meta.height}")
+                            else:
+                                print(f"     ❌ Image fetch failed")
+                        else:
+                            print(f"     📷 No image found")
+                    except Exception as e:
+                        print(f"     ❌ Image error: {e}")
+                    
+                    # Set has_image for scoring
+                    has_image = image_data.get("has_image", False)
+                    
                     score_total, scores, topics, entities = scorer.calculate_score(
                         title=title,
                         content=content_text,
                         source=source_name,
-                        published_at=published_at
+                        published_at=published_at,
+                        has_image=has_image
                     )
                     
                     # Create article data
@@ -103,7 +138,8 @@ def main():
                         "scores": scores,
                         "topics": topics,
                         "entities": {"matched": entities},
-                        "flags": {}
+                        "flags": {},
+                        **image_data  # Add image fields
                     }
                     
                     # Add flags based on score
@@ -153,4 +189,4 @@ def main():
         print(f"\n⚠️  No new articles imported")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
