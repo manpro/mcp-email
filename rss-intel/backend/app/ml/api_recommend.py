@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
+from .advanced_ranker import AdvancedArticleRanker
 from .ranker import ArticleRanker
 from .bandit import BanditRecommender
 from .uservec import get_user_embedding, compute_user_article_similarity
@@ -116,8 +117,8 @@ async def get_recommendations(
     logger.info(f"Getting recommendations for user {user_id}, limit={limit}")
     
     try:
-        # Get ranked articles
-        ranker = ArticleRanker(db)
+        # Get ranked articles using advanced ranker
+        ranker = AdvancedArticleRanker(db)
         scored_articles = ranker.rank_for_user(
             user_id=user_id,
             limit=limit * 2,  # Get more for diversification
@@ -188,7 +189,7 @@ async def debug_recommendations(
     """Debug endpoint showing recommendation pipeline details"""
     
     try:
-        ranker = ArticleRanker(db)
+        ranker = AdvancedArticleRanker(db)
         bandit = BanditRecommender(db)
         
         # Get candidates
@@ -202,6 +203,9 @@ async def debug_recommendations(
         sample_candidates = candidates[:10] if candidates else []
         scored_sample = ranker.score_articles(sample_candidates, user_id)
         
+        # Get model info
+        model_info = ranker.get_model_info()
+        
         return {
             "user_id": user_id,
             "candidates_found": len(candidates),
@@ -212,8 +216,7 @@ async def debug_recommendations(
                 "mmr_lambda": bandit.mmr_lambda,
                 "enabled": bandit.enabled
             },
-            "model_loaded": ranker.model is not None,
-            "model_id": ranker.model_id
+            **model_info  # Include advanced model info
         }
         
     except Exception as e:

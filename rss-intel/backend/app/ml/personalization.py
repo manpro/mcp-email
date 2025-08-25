@@ -46,7 +46,12 @@ class PersonalizationEngine:
         
         # Time features
         if article.published_at:
-            hours_since_published = (datetime.utcnow() - article.published_at).total_seconds() / 3600
+            from datetime import timezone
+            now_utc = datetime.now(timezone.utc)
+            pub_date = article.published_at
+            if pub_date.tzinfo is None:
+                pub_date = pub_date.replace(tzinfo=timezone.utc)
+            hours_since_published = (now_utc - pub_date).total_seconds() / 3600
             features['hours_since_published'] = hours_since_published
             features['recency_score'] = max(0, 1 - (hours_since_published / 168))  # Decay over 1 week
         else:
@@ -84,12 +89,14 @@ class PersonalizationEngine:
         """Create training data from user events"""
         
         # Get articles from the last N days with events
-        since_date = datetime.utcnow() - timedelta(days=lookback_days)
+        from datetime import timezone
+        since_date = datetime.now(timezone.utc) - timedelta(days=lookback_days)
         
         # Query articles with events
         articles_with_events = self.db.execute(text("""
-            SELECT DISTINCT a.id, a.title, a.source, a.published_at, a.content, a.full_content, 
-                   a.extraction_status, a.score_total, a.scores, a.topics, a.has_image,
+            SELECT a.id, a.title, a.source, a.published_at, a.content, a.full_content, 
+                   a.extraction_status, a.score_total, a.scores::text as scores_json, 
+                   array_to_string(a.topics, ',') as topics_str, a.has_image,
                    CASE 
                        WHEN EXISTS(SELECT 1 FROM events e WHERE e.article_id = a.id 
                                   AND e.type IN ('open', 'external_click', 'star') 
@@ -100,6 +107,8 @@ class PersonalizationEngine:
             JOIN events e ON e.article_id = a.id
             WHERE e.created_at >= :since_date
             AND a.published_at >= :since_date
+            GROUP BY a.id, a.title, a.source, a.published_at, a.content, a.full_content,
+                     a.extraction_status, a.score_total, a.scores::text, a.topics, a.has_image
         """), {"since_date": since_date}).fetchall()
         
         if len(articles_with_events) < 10:
@@ -111,6 +120,15 @@ class PersonalizationEngine:
         feature_names = None
         
         for row in articles_with_events:
+            # Parse JSON scores and topics
+            import json
+            try:
+                scores_dict = json.loads(row.scores_json) if row.scores_json and row.scores_json != 'null' else {}
+            except:
+                scores_dict = {}
+            
+            topics_list = row.topics_str.split(',') if row.topics_str else []
+            
             # Create article object
             article = Article(
                 id=row.id,
@@ -121,8 +139,8 @@ class PersonalizationEngine:
                 full_content=row.full_content,
                 extraction_status=row.extraction_status,
                 score_total=row.score_total,
-                scores=row.scores,
-                topics=row.topics,
+                scores=scores_dict,
+                topics=topics_list,
                 has_image=row.has_image
             )
             

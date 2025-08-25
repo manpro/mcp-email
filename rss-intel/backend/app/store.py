@@ -38,6 +38,7 @@ class Article(Base):
     source = Column(String, nullable=False)
     published_at = Column(DateTime(timezone=True), nullable=False, index=True)
     content_hash = Column(String, index=True, nullable=False)
+    content_type = Column(String(20), default='article', nullable=False, index=True)  # 'article' or 'event'
     score_total = Column(Integer, default=0, index=True)
     scores = Column(JSON, default={})
     entities = Column(JSON, default={})

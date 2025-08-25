@@ -218,7 +218,8 @@ class WeaviateManager:
         alpha: float = 0.7,
         lang: Optional[str] = None,
         freshness_days: Optional[int] = None,
-        min_score: Optional[int] = None
+        min_score: Optional[int] = None,
+        content_type: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Perform hybrid search combining vector similarity and BM25
@@ -231,13 +232,48 @@ class WeaviateManager:
             lang: Language filter
             freshness_days: Only articles from last N days
             min_score: Minimum article score
+            content_type: Content type filter ('article', 'event', 'all')
         
         Returns:
             List of search results with scores and metadata
         """
         try:
+            # Get content type filter article IDs if needed
+            allowed_article_ids = None
+            if content_type and content_type != 'all':
+                from sqlalchemy import create_engine, text
+                from ..config import settings
+                engine = create_engine(settings.database_url)
+                
+                with engine.connect() as conn:
+                    result = conn.execute(text("""
+                        SELECT id FROM articles 
+                        WHERE content_type = :content_type
+                        AND full_content IS NOT NULL
+                        AND LENGTH(full_content) > 100
+                    """), {"content_type": content_type})
+                    
+                    allowed_article_ids = [str(row.id) for row in result]
+                    logger.info(f"Content type filter: {len(allowed_article_ids)} {content_type}s found")
+                    
+                    if not allowed_article_ids:
+                        logger.info(f"No {content_type} articles found, returning empty results")
+                        return []
+            
             # Build where filter
             where_conditions = []
+            
+            # Add content type filter via article IDs
+            if allowed_article_ids is not None:
+                # Weaviate has a limit on the number of values in a contains_any filter
+                # So we'll apply this filter post-search if there are too many article IDs
+                if len(allowed_article_ids) <= 1000:
+                    where_conditions.append(
+                        wvq.Filter.by_property("articleId").contains_any(allowed_article_ids)
+                    )
+                else:
+                    # Will filter post-search for large lists
+                    pass
             
             if lang:
                 where_conditions.append(
@@ -269,28 +305,31 @@ class WeaviateManager:
                     where_filter = wvq.Filter.all_of(where_conditions)
             
             # Perform hybrid search
+            query_obj = self.collection.query.hybrid(
+                query=query,
+                vector=vector,
+                alpha=alpha,
+                limit=limit,
+                return_metadata=wvq.MetadataQuery(score=True, explain_score=True)
+            )
+            
             if where_filter:
-                response = self.collection.query.hybrid(
-                    query=query,
-                    vector=vector,
-                    alpha=alpha,
-                    limit=limit,
-                    return_metadata=wvq.MetadataQuery(score=True, explain_score=True)
-                ).where(where_filter)
+                response = query_obj.where(where_filter)
             else:
-                response = self.collection.query.hybrid(
-                    query=query,
-                    vector=vector,
-                    alpha=alpha,
-                    limit=limit,
-                    return_metadata=wvq.MetadataQuery(score=True, explain_score=True)
-                )
+                response = query_obj
             
             # Format results
             results = []
             for obj in response.objects:
+                article_id = int(obj.properties['articleId'])
+                
+                # Apply post-search content type filtering if needed
+                if allowed_article_ids is not None and len(allowed_article_ids) > 1000:
+                    if str(article_id) not in allowed_article_ids:
+                        continue
+                
                 results.append({
-                    'article_id': int(obj.properties['articleId']),
+                    'article_id': article_id,
                     'chunk_index': obj.properties['chunkIndex'],
                     'text': obj.properties['text'],
                     'title': obj.properties['title'],

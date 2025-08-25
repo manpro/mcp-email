@@ -69,12 +69,13 @@ def extract_recency_features(published_at: datetime, now: Optional[datetime] = N
     """Extract time-based features"""
     from datetime import timezone
     if now is None:
-        now = datetime.utcnow().replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
     
+    # Ensure both datetimes are timezone-aware or both are naive
     if published_at.tzinfo is None:
-        published_at = published_at.replace(tzinfo=None)
-    if now.tzinfo is not None:
-        now = now.replace(tzinfo=None)
+        published_at = published_at.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     
     age_hours = (now - published_at).total_seconds() / 3600
     
@@ -95,7 +96,7 @@ def extract_interaction_features(
 ) -> np.ndarray:
     """Extract user interaction history features"""
     from datetime import timezone
-    cutoff = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=lookback_days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
     
     # Get interaction stats for this user
     result = db.execute(text("""
@@ -143,7 +144,7 @@ def build_training_features(
         DataFrame with features and labels
     """
     from datetime import timezone
-    cutoff = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(days=lookback_days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=lookback_days)
     
     logger.info(f"Building training features, lookback={lookback_days} days")
     

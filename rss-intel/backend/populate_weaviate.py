@@ -144,10 +144,12 @@ async def get_articles_for_chunking(limit: int = 100, offset: int = 0) -> List[D
                 a.source,
                 a.published_at,
                 a.score_total,
-                a.has_image
+                a.has_image,
+                a.content_type
             FROM articles a
             WHERE a.full_content IS NOT NULL 
                 AND LENGTH(a.full_content) > 100
+                AND a.content_type = 'article'  -- Only process articles, not events
             ORDER BY a.id ASC
             LIMIT :limit OFFSET :offset
         """), {"limit": limit, "offset": offset})
@@ -163,7 +165,8 @@ async def get_articles_for_chunking(limit: int = 100, offset: int = 0) -> List[D
                 'source': row.source,
                 'published_at': row.published_at,
                 'score_total': row.score_total,
-                'has_image': row.has_image
+                'has_image': row.has_image,
+                'content_type': row.content_type
             })
         
         logger.info(f"Found {len(articles)} articles ready for chunking")

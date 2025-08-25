@@ -8,7 +8,10 @@ import logging
 from ..deps import get_db
 from ..rag_engine import rag_engine
 from ..vec.weaviate_client import weaviate_manager
+from ..personalization_service import get_personalization_service
+from ..auth import get_current_user
 from sqlalchemy.orm import Session
+from fastapi import Request
 
 logger = logging.getLogger(__name__)
 
@@ -44,12 +47,16 @@ class AskResponse(BaseModel):
 
 @router.get("/search", response_model=SearchResponse)
 async def search_articles(
+    request: Request,
+    db: Session = Depends(get_db),
     q: str = Query(..., min_length=1, max_length=200, description="Search query"),
     k: int = Query(default=30, ge=1, le=100, description="Number of results"),
     lang: Optional[str] = Query(default=None, regex="^(en|sv|de|fr)$", description="Language filter"),
     freshness_days: Optional[int] = Query(default=30, ge=1, le=365, description="Articles from last N days"),
     hybrid: bool = Query(default=True, description="Use hybrid vector+BM25 search"),
-    alpha: float = Query(default=0.7, ge=0.0, le=1.0, description="Hybrid balance (0=BM25, 1=vector)")
+    alpha: float = Query(default=0.7, ge=0.0, le=1.0, description="Hybrid balance (0=BM25, 1=vector)"),
+    content_type: Optional[str] = Query(default='article', regex="^(article|event|all)$", description="Content type filter"),
+    personalized: bool = Query(default=True, description="Apply ML personalization")
 ) -> SearchResponse:
     """
     Semantic search across article content
@@ -60,7 +67,9 @@ async def search_articles(
     start_time = datetime.now()
     
     try:
-        logger.info(f"Search request: q='{q}', k={k}, lang={lang}, hybrid={hybrid}")
+        # Get current user
+        user_id = get_current_user(request)
+        logger.info(f"Search request: q='{q}', k={k}, lang={lang}, hybrid={hybrid}, personalized={personalized}, user={user_id}")
         
         # Perform search using our RAG engine's hybrid search
         # Note: freshness_days filter may be too restrictive, test without it first
@@ -69,7 +78,8 @@ async def search_articles(
             max_chunks=k,
             alpha=alpha if hybrid else 0.0,  # Set alpha to 0 for BM25 only
             lang=lang,
-            freshness_days=None  # Disable freshness filter for now
+            freshness_days=None,  # Disable freshness filter for now
+            content_type=None  # Temporarily disable content_type filtering
         )
         
         # Calculate search time
@@ -151,6 +161,18 @@ async def search_articles(
         # Sort by relevance score
         formatted_results.sort(key=lambda x: x['relevance_score'], reverse=True)
         
+        # Apply personalization if requested
+        if personalized and formatted_results:
+            try:
+                personalization_service = get_personalization_service(db)
+                formatted_results = personalization_service.personalize_search_results(
+                    formatted_results, user_id=user_id, boost_factor=0.3
+                )
+                logger.info(f"Applied personalization for user {user_id}")
+            except Exception as e:
+                logger.error(f"Personalization failed: {e}")
+                # Continue with non-personalized results
+        
         return SearchResponse(
             results=formatted_results,
             query=q,
@@ -170,7 +192,7 @@ async def search_articles(
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask_question(request: AskRequest) -> AskResponse:
+async def ask_question(request: AskRequest, http_request: Request, db: Session = Depends(get_db)) -> AskResponse:
     """
     Ask a question and get an AI-generated answer with citations
     
@@ -180,7 +202,9 @@ async def ask_question(request: AskRequest) -> AskResponse:
     start_time = datetime.now()
     
     try:
-        logger.info(f"Ask request: q='{request.q}', k={request.k}, lang={request.lang}")
+        # Get current user
+        user_id = get_current_user(http_request)
+        logger.info(f"Ask request: q='{request.q}', k={request.k}, lang={request.lang}, user={user_id}")
         
         # Use RAG engine to generate answer with retrieval
         answer_data = rag_engine.ask_question(
@@ -188,7 +212,11 @@ async def ask_question(request: AskRequest) -> AskResponse:
             max_chunks=request.k,
             alpha=0.7,  # Favor vector search for Q&A
             lang=request.lang,
-            freshness_days=request.freshness_days
+            freshness_days=request.freshness_days,
+            content_type=None,  # Temporarily disable content_type filtering
+            personalized=True,
+            user_id=user_id,
+            db_session=db
         )
         
         # Calculate generation time

@@ -20,6 +20,7 @@ from .scheduler import scheduler
 from .config import settings
 from .extraction_worker import extraction_worker
 from .content_service import ContentExtractionService
+from .learning_scheduler import start_learning_scheduler, stop_learning_scheduler
 from .ml.api_recommend import router as recommend_router
 # from .ml.api_events import router as ml_events_router  # Events have issues, keep disabled
 # from .api.events import router as events_router  # Events have issues, keep disabled
@@ -28,16 +29,22 @@ from .api.search import router as search_router
 from .api.stories import router as stories_router
 from .api.spotlight import router as spotlight_router
 from .api.recommend_simple import router as recommend_simple_router
+from .api.user_profile import router as user_profile_router
+from .api.auth import router as auth_router
+from .api.learning import router as learning_router
+from .api.ab_testing import router as ab_testing_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     print("Starting RSS Intelligence Backend...")
     scheduler.start()
+    await start_learning_scheduler()
     yield
     # Shutdown
     print("Shutting down...")
     scheduler.stop()
+    await stop_learning_scheduler()
 
 app = FastAPI(
     title="RSS Intelligence Dashboard",
@@ -58,12 +65,16 @@ app.add_middleware(
 # Include routers
 app.include_router(recommend_router, prefix="/api/ml", tags=["recommendations"])
 app.include_router(recommend_simple_router, prefix="/api", tags=["recommendations"])
+app.include_router(user_profile_router, tags=["user_profile"])
 # app.include_router(ml_events_router, prefix="/api/ml", tags=["ml-events"])  # Events have issues, keep disabled
 # app.include_router(events_router, prefix="/api", tags=["events"])  # Events have issues, keep disabled  
 app.include_router(personalization_router, prefix="/api", tags=["personalization"])
 app.include_router(search_router, tags=["search"])
 app.include_router(stories_router, tags=["stories"])
 app.include_router(spotlight_router, prefix="/api/spotlight", tags=["spotlight"])
+app.include_router(auth_router, tags=["authentication"])
+app.include_router(learning_router, tags=["learning"])
+app.include_router(ab_testing_router, tags=["ab_testing"])
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():

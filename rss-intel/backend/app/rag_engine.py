@@ -51,7 +51,8 @@ class RAGEngine:
         alpha: float = 0.7,
         lang: Optional[str] = None,
         freshness_days: Optional[int] = None,
-        min_score: Optional[int] = None
+        min_score: Optional[int] = None,
+        content_type: Optional[str] = 'article'
     ) -> List[Dict[str, Any]]:
         """
         Retrieve relevant chunks for a question using hybrid search
@@ -63,6 +64,7 @@ class RAGEngine:
             lang: Language filter
             freshness_days: Only articles from last N days
             min_score: Minimum article score filter
+            content_type: Content type filter ('article', 'event', 'all')
             
         Returns:
             List of relevant chunks with metadata
@@ -80,7 +82,8 @@ class RAGEngine:
             alpha=alpha,
             lang=lang,
             freshness_days=freshness_days,
-            min_score=min_score
+            min_score=min_score,
+            content_type=content_type
         )
         
         # Filter by relevance score
@@ -347,7 +350,11 @@ Answer:"""
         alpha: float = 0.7,
         lang: Optional[str] = None,
         freshness_days: Optional[int] = None,
-        min_score: Optional[int] = None
+        min_score: Optional[int] = None,
+        content_type: Optional[str] = 'article',
+        personalized: bool = True,
+        user_id: str = "owner",
+        db_session = None
     ) -> Dict[str, Any]:
         """
         Main Q&A function - retrieve context and generate answer
@@ -359,6 +366,7 @@ Answer:"""
             lang: Language filter
             freshness_days: Freshness filter
             min_score: Score filter
+            content_type: Content type filter
             
         Returns:
             Complete Q&A response with answer, sources, and metadata
@@ -373,8 +381,22 @@ Answer:"""
             alpha=alpha,
             lang=lang,
             freshness_days=freshness_days,
-            min_score=min_score
+            min_score=min_score,
+            content_type=content_type
         )
+        
+        # Apply personalization to chunks if requested and db session is available
+        if personalized and chunks and db_session:
+            try:
+                from .personalization_service import get_personalization_service
+                personalization_service = get_personalization_service(db_session)
+                chunks = personalization_service.get_personalized_context_for_qa(
+                    question, chunks, user_id=user_id, max_chunks=max_chunks
+                )
+                logger.info(f"Applied personalization to Q&A context for user {user_id}")
+            except Exception as e:
+                logger.error(f"Q&A personalization failed: {e}")
+                # Continue with original chunks
         
         # Generate answer
         result = self.generate_answer(question, chunks)
