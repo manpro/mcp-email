@@ -2,17 +2,17 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  BeakerIcon,
-  PlayIcon,
-  PauseIcon,
-  StopIcon,
-  ChartBarIcon,
-  UserGroupIcon,
-  TrendingUpIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon
-} from '@heroicons/react/24/outline';
+  Beaker,
+  Play,
+  Pause,
+  Square,
+  BarChart3,
+  Users,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  Clock
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -179,13 +179,13 @@ export const ABTestManager: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'running':
-        return <PlayIcon className="h-4 w-4" />;
+        return <Play className="h-4 w-4" />;
       case 'paused':
-        return <PauseIcon className="h-4 w-4" />;
+        return <Pause className="h-4 w-4" />;
       case 'completed':
-        return <CheckCircleIcon className="h-4 w-4" />;
+        return <CheckCircle className="h-4 w-4" />;
       default:
-        return <ClockIcon className="h-4 w-4" />;
+        return <Clock className="h-4 w-4" />;
     }
   };
 
@@ -198,7 +198,7 @@ export const ABTestManager: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="text-center py-12">
-        <BeakerIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <Beaker className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Sign In Required</h2>
         <p className="text-gray-600 dark:text-gray-400">Please sign in to manage A/B experiments.</p>
       </div>
@@ -225,11 +225,11 @@ export const ABTestManager: React.FC = () => {
         </div>
         <div className="mt-4 sm:mt-0 flex gap-3">
           <Button variant="outline" size="sm">
-            <ChartBarIcon className="w-4 h-4 mr-2" />
+            <BarChart3 className="w-4 h-4 mr-2" />
             Analytics
           </Button>
           <Button size="sm">
-            <BeakerIcon className="w-4 h-4 mr-2" />
+            <Beaker className="w-4 h-4 mr-2" />
             New Experiment
           </Button>
         </div>
@@ -240,7 +240,7 @@ export const ABTestManager: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <BeakerIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <Beaker className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Tests</p>
@@ -252,7 +252,7 @@ export const ABTestManager: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <PlayIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <Play className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Running</p>
@@ -266,7 +266,7 @@ export const ABTestManager: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <UserGroupIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              <Users className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
@@ -280,7 +280,7 @@ export const ABTestManager: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-              <TrendingUpIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
+              <TrendingUp className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Win Rate</p>
@@ -322,7 +322,7 @@ export const ABTestManager: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h5 className="font-medium text-gray-900 dark:text-white">Variant A: {test.variant_a.name}</h5>
-                        {test.winner === 'A' && <CheckCircleIcon className="h-5 w-5 text-green-500" />}
+                        {test.winner === 'A' && <CheckCircle className="h-5 w-5 text-green-500" />}
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{test.variant_a.description}</p>
                       <div className="grid grid-cols-3 gap-2 text-sm">
@@ -344,7 +344,7 @@ export const ABTestManager: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-2">
                         <h5 className="font-medium text-gray-900 dark:text-white">Variant B: {test.variant_b.name}</h5>
-                        {test.winner === 'B' && <CheckCircleIcon className="h-5 w-5 text-green-500" />}
+                        {test.winner === 'B' && <CheckCircle className="h-5 w-5 text-green-500" />}
                       </div>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">{test.variant_b.description}</p>
                       <div className="grid grid-cols-3 gap-2 text-sm">
@@ -376,24 +376,24 @@ export const ABTestManager: React.FC = () => {
                 {/* Actions */}
                 <div className="mt-4 lg:mt-0 lg:ml-6 flex gap-2">
                   <Button variant="outline" size="sm">
-                    <ChartBarIcon className="w-4 h-4 mr-1" />
+                    <BarChart3 className="w-4 h-4 mr-1" />
                     Details
                   </Button>
                   {test.status === 'running' && (
                     <Button variant="outline" size="sm">
-                      <PauseIcon className="w-4 h-4 mr-1" />
+                      <Pause className="w-4 h-4 mr-1" />
                       Pause
                     </Button>
                   )}
                   {test.status === 'paused' && (
                     <Button variant="outline" size="sm">
-                      <PlayIcon className="w-4 h-4 mr-1" />
+                      <Play className="w-4 h-4 mr-1" />
                       Resume
                     </Button>
                   )}
                   {test.status === 'running' && (
                     <Button variant="destructive" size="sm">
-                      <StopIcon className="w-4 h-4 mr-1" />
+                      <Square className="w-4 h-4 mr-1" />
                       Stop
                     </Button>
                   )}

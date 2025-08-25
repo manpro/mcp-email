@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  ChartBarIcon, 
-  EyeIcon, 
-  HeartIcon, 
-  ClockIcon,
-  TrendingUpIcon,
-  UserIcon,
-  TagIcon,
-  NewspaperIcon
-} from '@heroicons/react/24/outline';
+  BarChart3, 
+  Eye, 
+  Heart, 
+  Clock,
+  TrendingUp,
+  User,
+  Tag,
+  Newspaper
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 
@@ -111,7 +111,7 @@ export const UserAnalytics: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="text-center py-12">
-        <UserIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Sign In Required</h2>
         <p className="text-gray-600 dark:text-gray-400">Please sign in to view your reading analytics.</p>
       </div>
@@ -137,7 +137,7 @@ export const UserAnalytics: React.FC = () => {
           </p>
         </div>
         <Badge variant="secondary" className="mt-2 sm:mt-0">
-          <ClockIcon className="w-4 h-4 mr-1" />
+          <Clock className="w-4 h-4 mr-1" />
           Last updated: now
         </Badge>
       </div>
@@ -147,7 +147,7 @@ export const UserAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <NewspaperIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+              <Newspaper className="h-6 w-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Articles Read</p>
@@ -159,7 +159,7 @@ export const UserAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-              <ClockIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <Clock className="h-6 w-6 text-green-600 dark:text-green-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Reading Time</p>
@@ -173,7 +173,7 @@ export const UserAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
-              <TrendingUpIcon className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+              <TrendingUp className="h-6 w-6 text-orange-600 dark:text-orange-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Reading Streak</p>
@@ -185,7 +185,7 @@ export const UserAnalytics: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center">
             <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-              <EyeIcon className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+              <Eye className="h-6 w-6 text-purple-600 dark:text-purple-400" />
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600 dark:text-gray-400">This Week</p>
@@ -238,7 +238,7 @@ export const UserAnalytics: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center mb-4">
-            <TagIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <Tag className="h-5 w-5 text-gray-400 mr-2" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Favorite Topics</h3>
           </div>
           <div className="space-y-3">
@@ -261,7 +261,7 @@ export const UserAnalytics: React.FC = () => {
 
         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center mb-4">
-            <HeartIcon className="h-5 w-5 text-gray-400 mr-2" />
+            <Heart className="h-5 w-5 text-gray-400 mr-2" />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Preferred Sources</h3>
           </div>
           <div className="space-y-3">
@@ -286,7 +286,7 @@ export const UserAnalytics: React.FC = () => {
       {/* Reading Patterns */}
       <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
         <div className="flex items-center mb-6">
-          <ChartBarIcon className="h-5 w-5 text-gray-400 mr-2" />
+          <BarChart3 className="h-5 w-5 text-gray-400 mr-2" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Reading Patterns</h3>
         </div>
         <div className="h-64 flex items-end justify-between space-x-1">

@@ -4,17 +4,17 @@ import React from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import {
-  HomeIcon,
-  SparklesIcon,
-  MagnifyingGlassIcon,
-  ChatBubbleLeftRightIcon,
-  EyeIcon,
-  ChartBarIcon,
-  BeakerIcon,
-  Cog6ToothIcon,
-  EnvelopeIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+  Home,
+  Sparkles,
+  Search,
+  MessageSquare,
+  Eye,
+  BarChart3,
+  Beaker,
+  Settings,
+  Mail,
+  X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
@@ -31,52 +31,52 @@ interface NavigationItem {
 const navigationItems: NavigationItem[] = [
   {
     name: 'Browse',
-    icon: HomeIcon,
+    icon: Home,
     tab: 'browse',
     description: 'Browse all articles and feeds',
   },
   {
     name: 'Recommended',
-    icon: SparklesIcon,
+    icon: Sparkles,
     tab: 'recommended',
     badge: 'AI',
     description: 'Personalized recommendations',
   },
   {
     name: 'Search',
-    icon: MagnifyingGlassIcon,
+    icon: Search,
     tab: 'search',
     description: 'Semantic search with filters',
   },
   {
     name: 'Ask AI',
-    icon: ChatBubbleLeftRightIcon,
+    icon: MessageSquare,
     tab: 'ask',
     badge: 'GPT',
     description: 'Ask questions about your content',
   },
   {
     name: 'Spotlight',
-    icon: EyeIcon,
+    icon: Eye,
     tab: 'spotlight',
     description: 'Featured and trending content',
   },
   {
     name: 'Email',
-    icon: EnvelopeIcon,
+    icon: Mail,
     tab: 'email',
     badge: 'New',
     description: 'Newsletter and email content',
   },
   {
     name: 'Analytics',
-    icon: ChartBarIcon,
+    icon: BarChart3,
     tab: 'analytics',
     description: 'User insights and behavior',
   },
   {
     name: 'Experiments',
-    icon: BeakerIcon,
+    icon: Beaker,
     tab: 'experiments',
     badge: 'A/B',
     description: 'A/B testing and optimization',
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Bottom section */}
       <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 p-3">
         <button className="group flex w-full items-center rounded-lg px-3 py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800 transition-colors">
-          <Cog6ToothIcon className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" />
+          <Settings className="mr-3 h-5 w-5 flex-shrink-0 text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300" />
           Settings
         </button>
       </div>
@@ -201,7 +201,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       onClick={onClose}
                     >
                       <span className="sr-only">Close sidebar</span>
-                      <XMarkIcon className="h-6 w-6 text-white" />
+                      <X className="h-6 w-6 text-white" />
                     </button>
                   </div>
                 </Transition.Child>

@@ -4,14 +4,14 @@ import React, { useState } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import {
-  Bars3Icon,
-  XMarkIcon,
-  UserIcon,
-  ArrowRightOnRectangleIcon,
-  Cog6ToothIcon,
-  ChartBarIcon,
-  BeakerIcon,
-} from '@heroicons/react/24/outline';
+  Menu as MenuIcon,
+  X,
+  User,
+  LogOut,
+  Settings,
+  BarChart3,
+  Beaker,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,9 +44,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                 aria-label="Open menu"
               >
                 {isMenuOpen ? (
-                  <XMarkIcon className="h-6 w-6" />
+                  <X className="h-6 w-6" />
                 ) : (
-                  <Bars3Icon className="h-6 w-6" />
+                  <MenuIcon className="h-6 w-6" />
                 )}
               </button>
 
@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
               {/* User status badge */}
               {isAuthenticated && user && (
                 <Badge variant="secondary" className="hidden sm:flex">
-                  <UserIcon className="w-3 h-3 mr-1" />
+                  <User className="w-3 h-3 mr-1" />
                   {user.username}
                 </Badge>
               )}
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                 <Menu as="div" className="relative">
                   <Menu.Button className="flex items-center gap-2 p-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
                     <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                      <UserIcon className="w-4 h-4 text-white" />
+                      <User className="w-4 h-4 text-white" />
                     </div>
                     <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-300">
                       {user?.username || 'User'}
@@ -122,7 +122,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                                   : 'text-gray-700 dark:text-gray-300'
                               )}
                             >
-                              <ChartBarIcon className="mr-3 h-4 w-4" />
+                              <BarChart3 className="mr-3 h-4 w-4" />
                               User Analytics
                             </button>
                           )}
@@ -138,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                                   : 'text-gray-700 dark:text-gray-300'
                               )}
                             >
-                              <BeakerIcon className="mr-3 h-4 w-4" />
+                              <Beaker className="mr-3 h-4 w-4" />
                               A/B Experiments
                             </button>
                           )}
@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                                   : 'text-gray-700 dark:text-gray-300'
                               )}
                             >
-                              <Cog6ToothIcon className="mr-3 h-4 w-4" />
+                              <Settings className="mr-3 h-4 w-4" />
                               Preferences
                             </button>
                           )}
@@ -174,7 +174,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                                   : 'text-gray-700 dark:text-gray-300'
                               )}
                             >
-                              <ArrowRightOnRectangleIcon className="mr-3 h-4 w-4" />
+                              <LogOut className="mr-3 h-4 w-4" />
                               Sign Out
                             </button>
                           )}
@@ -190,7 +190,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleMenu, isMenuOpen }) => {
                   size="sm"
                   className="font-medium"
                 >
-                  <UserIcon className="w-4 h-4 mr-2" />
+                  <User className="w-4 h-4 mr-2" />
                   Sign In
                 </Button>
               )}

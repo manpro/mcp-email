@@ -2,16 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  TagIcon,
-  CalendarIcon,
-  UserIcon,
-  StarIcon,
-  ClockIcon,
-  SparklesIcon,
-  XMarkIcon
-} from '@heroicons/react/24/outline';
+  Search,
+  Filter,
+  Tag,
+  Calendar,
+  User,
+  Star,
+  Clock,
+  Sparkles,
+  X
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -244,7 +244,7 @@ export const SearchInterface: React.FC = () => {
         </div>
         {isAuthenticated && (
           <Badge variant="secondary" className="mt-2 sm:mt-0">
-            <SparklesIcon className="w-4 h-4 mr-1" />
+            <Sparkles className="w-4 h-4 mr-1" />
             Personalized Results
           </Badge>
         )}
@@ -254,7 +254,7 @@ export const SearchInterface: React.FC = () => {
       <div className="relative">
         <div className="flex gap-3">
           <div className="flex-1 relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <Input
               type="text"
               placeholder="Search articles, topics, or keywords..."
@@ -269,7 +269,7 @@ export const SearchInterface: React.FC = () => {
             variant="outline"
             size="default"
           >
-            <FunnelIcon className="h-4 w-4 mr-2" />
+            <Filter className="h-4 w-4 mr-2" />
             Filters
             {(filters.sources.length + filters.topics.length) > 0 && (
               <Badge variant="secondary" className="ml-2 text-xs">
@@ -281,7 +281,7 @@ export const SearchInterface: React.FC = () => {
             {loading ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-r-transparent" />
             ) : (
-              <MagnifyingGlassIcon className="h-4 w-4" />
+              <Search className="h-4 w-4" />
             )}
           </Button>
         </div>
@@ -293,7 +293,7 @@ export const SearchInterface: React.FC = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Search Filters</h3>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <XMarkIcon className="h-4 w-4 mr-1" />
+              <X className="h-4 w-4 mr-1" />
               Clear All
             </Button>
           </div>
@@ -301,7 +301,7 @@ export const SearchInterface: React.FC = () => {
           {/* Date Range */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <CalendarIcon className="h-4 w-4 inline mr-1" />
+              <Calendar className="h-4 w-4 inline mr-1" />
               Date Range
             </label>
             <div className="flex flex-wrap gap-2">
@@ -321,7 +321,7 @@ export const SearchInterface: React.FC = () => {
           {/* Sources */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <UserIcon className="h-4 w-4 inline mr-1" />
+              <User className="h-4 w-4 inline mr-1" />
               Sources ({filters.sources.length} selected)
             </label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
@@ -341,7 +341,7 @@ export const SearchInterface: React.FC = () => {
           {/* Topics */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <TagIcon className="h-4 w-4 inline mr-1" />
+              <Tag className="h-4 w-4 inline mr-1" />
               Topics ({filters.topics.length} selected)
             </label>
             <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
@@ -380,7 +380,7 @@ export const SearchInterface: React.FC = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                <ClockIcon className="h-4 w-4 inline mr-1" />
+                <Clock className="h-4 w-4 inline mr-1" />
                 Reading Time
               </label>
               <div className="flex flex-wrap gap-2">
@@ -413,7 +413,7 @@ export const SearchInterface: React.FC = () => {
 
         {!loading && results.length === 0 && filters.query && (
           <div className="text-center py-8">
-            <MagnifyingGlassIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No results found</h3>
             <p className="text-gray-600 dark:text-gray-400">Try adjusting your search terms or filters.</p>
           </div>
@@ -427,7 +427,7 @@ export const SearchInterface: React.FC = () => {
               </p>
               {isAuthenticated && filters.personalized && (
                 <Badge variant="secondary">
-                  <SparklesIcon className="w-3 h-3 mr-1" />
+                  <Sparkles className="w-3 h-3 mr-1" />
                   Ranked by relevance
                 </Badge>
               )}
@@ -463,11 +463,11 @@ export const SearchInterface: React.FC = () => {
                       {result.content_type}
                     </Badge>
                     <Badge variant="outline">
-                      <StarIcon className="w-3 h-3 mr-1" />
+                      <Star className="w-3 h-3 mr-1" />
                       {result.score}/10
                     </Badge>
                     <Badge variant="outline">
-                      <ClockIcon className="w-3 h-3 mr-1" />
+                      <Clock className="w-3 h-3 mr-1" />
                       {result.reading_time_minutes} min • {getReadingTimeLabel(result.reading_time_minutes)}
                     </Badge>
                     {result.topics.slice(0, 2).map(topic => (

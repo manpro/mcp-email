@@ -2,21 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  EnvelopeIcon,
-  InboxArrowDownIcon,
-  FolderIcon,
-  TagIcon,
-  StarIcon,
-  EyeIcon,
-  EyeSlashIcon,
-  ArchiveBoxIcon,
-  TrashIcon,
-  PlusIcon,
-  MagnifyingGlassIcon,
-  CalendarIcon,
-  ClockIcon,
-  CheckCircleIcon
-} from '@heroicons/react/24/outline';
+  Mail,
+  Inbox,
+  Folder,
+  Tag,
+  Star,
+  Eye,
+  EyeOff,
+  Archive,
+  Trash,
+  Plus,
+  Search,
+  Calendar,
+  Clock,
+  CheckCircle
+} from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -285,7 +285,7 @@ export const EmailClient: React.FC = () => {
   if (!isAuthenticated) {
     return (
       <div className="text-center py-12">
-        <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+        <Mail className="mx-auto h-12 w-12 text-gray-400 mb-4" />
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Sign In Required</h2>
         <p className="text-gray-600 dark:text-gray-400">Please sign in to access your email newsletters.</p>
       </div>
@@ -312,11 +312,11 @@ export const EmailClient: React.FC = () => {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Email</h2>
             <Button size="sm" onClick={() => setShowAddSubscription(true)}>
-              <PlusIcon className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
             </Button>
           </div>
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               type="text"
               placeholder="Search emails..."
@@ -338,7 +338,7 @@ export const EmailClient: React.FC = () => {
                   : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
-              <InboxArrowDownIcon className="h-4 w-4 mr-3" />
+              <Inbox className="h-4 w-4 mr-3" />
               Inbox
               {unreadCount > 0 && (
                 <Badge variant="secondary" className="ml-auto text-xs">
@@ -355,7 +355,7 @@ export const EmailClient: React.FC = () => {
                   : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
-              <EyeSlashIcon className="h-4 w-4 mr-3" />
+              <EyeOff className="h-4 w-4 mr-3" />
               Unread
             </button>
 
@@ -367,7 +367,7 @@ export const EmailClient: React.FC = () => {
                   : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
-              <StarIcon className="h-4 w-4 mr-3" />
+              <Star className="h-4 w-4 mr-3" />
               Starred
             </button>
 
@@ -379,7 +379,7 @@ export const EmailClient: React.FC = () => {
                   : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
-              <ArchiveBoxIcon className="h-4 w-4 mr-3" />
+              <Archive className="h-4 w-4 mr-3" />
               Archived
             </button>
 
@@ -391,7 +391,7 @@ export const EmailClient: React.FC = () => {
                   : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               }`}
             >
-              <FolderIcon className="h-4 w-4 mr-3" />
+              <Folder className="h-4 w-4 mr-3" />
               Subscriptions
             </button>
           </div>
@@ -409,7 +409,7 @@ export const EmailClient: React.FC = () => {
                   Newsletter Subscriptions
                 </h3>
                 <Button onClick={() => setShowAddSubscription(true)}>
-                  <PlusIcon className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Subscription
                 </Button>
               </div>
@@ -490,7 +490,7 @@ export const EmailClient: React.FC = () => {
             <div className="flex-1 overflow-y-auto">
               {filteredEmails.length === 0 ? (
                 <div className="text-center py-12">
-                  <EnvelopeIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <Mail className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     No emails found
                   </h3>
@@ -540,7 +540,7 @@ export const EmailClient: React.FC = () => {
                             }}
                             className="text-gray-400 hover:text-yellow-500 transition-colors"
                           >
-                            <StarIcon className={`h-4 w-4 ${email.is_starred ? 'fill-yellow-500 text-yellow-500' : ''}`} />
+                            <Star className={`h-4 w-4 ${email.is_starred ? 'fill-yellow-500 text-yellow-500' : ''}`} />
                           </button>
                           
                           <button
@@ -551,9 +551,9 @@ export const EmailClient: React.FC = () => {
                             className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                           >
                             {email.is_read ? (
-                              <EyeSlashIcon className="h-4 w-4" />
+                              <EyeOff className="h-4 w-4" />
                             ) : (
-                              <EyeIcon className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             )}
                           </button>
                         </div>
@@ -565,7 +565,7 @@ export const EmailClient: React.FC = () => {
                         </Badge>
                         
                         <Badge variant="outline">
-                          <ClockIcon className="h-3 w-3 mr-1" />
+                          <Clock className="h-3 w-3 mr-1" />
                           {email.reading_time_minutes} min
                         </Badge>
                         

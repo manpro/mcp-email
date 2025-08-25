@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { XMarkIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import { X, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -92,7 +92,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     onClick={onClose}
                     className="rounded-full p-1 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
-                    <XMarkIcon className="h-5 w-5" />
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
 
@@ -136,9 +136,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                         className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
                       >
                         {showPassword ? (
-                          <EyeSlashIcon className="h-5 w-5" />
+                          <EyeOff className="h-5 w-5" />
                         ) : (
-                          <EyeIcon className="h-5 w-5" />
+                          <Eye className="h-5 w-5" />
                         )}
                       </button>
                     </div>
