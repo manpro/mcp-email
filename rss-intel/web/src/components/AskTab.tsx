@@ -10,20 +10,20 @@ import { Alert, AlertDescription } from './ui/alert'
 import { Skeleton } from './ui/skeleton'
 
 interface Citation {
-  id: string
   title: string
   url: string
   source: string
   published_at: string
   relevance_score: number
-  excerpt: string
 }
 
 interface AskResponse {
   answer: string
   citations: Citation[]
+  question: string
   confidence: number
-  processing_time: number
+  sources_count: number
+  generation_time_ms: number
 }
 
 export function AskTab() {
@@ -40,10 +40,14 @@ export function AskTab() {
     setError(null)
     
     try {
-      const res = await fetch('/api/ask', {
+      const res = await fetch('/api/proxy/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question })
+        body: JSON.stringify({ 
+          q: question,
+          k: 12,  // Number of sources to consider
+          lang: 'en'  // Language preference
+        })
       })
 
       if (!res.ok) {
@@ -168,7 +172,10 @@ export function AskTab() {
                 <div className="flex gap-2">
                   {getConfidenceBadge(response.confidence)}
                   <Badge variant="outline">
-                    {response.processing_time.toFixed(2)}s
+                    {(response.generation_time_ms / 1000).toFixed(2)}s
+                  </Badge>
+                  <Badge variant="secondary">
+                    {response.sources_count} sources
                   </Badge>
                 </div>
               </div>
@@ -194,7 +201,7 @@ export function AskTab() {
               
               <div className="grid gap-4 md:grid-cols-2">
                 {response.citations.map((citation, index) => (
-                  <Card key={citation.id} className="hover:shadow-lg transition-shadow">
+                  <Card key={`${citation.url}-${index}`} className="hover:shadow-lg transition-shadow">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div className="flex justify-between items-start">
@@ -209,12 +216,6 @@ export function AskTab() {
                         <h4 className="font-medium text-sm line-clamp-2">
                           {citation.title}
                         </h4>
-                        
-                        {citation.excerpt && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">
-                            {citation.excerpt}
-                          </p>
-                        )}
                         
                         <div className="flex items-center justify-between text-xs text-gray-500">
                           <div className="flex items-center gap-2">

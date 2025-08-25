@@ -12,16 +12,21 @@ import { Badge } from './ui/badge'
 import { Skeleton } from './ui/skeleton'
 
 interface SearchResult {
-  id: string
+  article_id: number
   title: string
-  content: string
+  snippet: string
   url: string
   source: string
   published_at: string
-  language: string
-  score: number
-  highlights: string[]
-  reasons: string[]
+  lang: string
+  relevance_score: number
+  rule_score: number
+  why_chips: string[]
+  search_metadata: {
+    chunk_index: number
+    token_count: number
+    search_method: string
+  }
 }
 
 interface SearchFilters {
@@ -58,18 +63,26 @@ export function SearchTab() {
     try {
       const params = new URLSearchParams()
       params.set('q', searchQuery)
-      if (searchFilters.language) params.set('language', searchFilters.language)
-      if (searchFilters.freshness) params.set('freshness', searchFilters.freshness)
-      if (searchFilters.source) params.set('source', searchFilters.source)
-      if (searchFilters.hybrid) params.set('hybrid', 'true')
-      params.set('limit', '20')
-      params.set('offset', String((searchPage - 1) * 20))
+      params.set('k', '30') // Number of results
+      if (searchFilters.language) params.set('lang', searchFilters.language)
+      if (searchFilters.freshness) {
+        // Convert freshness to days
+        const freshnessMap: { [key: string]: string } = {
+          '1h': '1',
+          '24h': '1', 
+          '7d': '7',
+          '30d': '30'
+        }
+        params.set('freshness_days', freshnessMap[searchFilters.freshness] || '30')
+      }
+      params.set('hybrid', searchFilters.hybrid ? 'true' : 'false')
+      params.set('alpha', '0.7') // Hybrid search balance
 
-      const response = await fetch(`/api/search?${params}`)
+      const response = await fetch(`/api/proxy/api/search?${params}`)
       const data = await response.json()
       
       setResults(data.results || [])
-      setTotalResults(data.total || 0)
+      setTotalResults(data.total_found || 0)
       
       // Update URL
       const newParams = new URLSearchParams()
@@ -148,13 +161,13 @@ export function SearchTab() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 items-center">
-        <Select value={filters.language || ''} onValueChange={(v) => handleFilterChange('language', v || undefined)}>
+        <Select value={filters.language || 'all'} onValueChange={(v) => handleFilterChange('language', v === 'all' ? undefined : v)}>
           <SelectTrigger className="w-32">
             <Globe className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Language" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All</SelectItem>
+            <SelectItem value="all">All</SelectItem>
             <SelectItem value="en">English</SelectItem>
             <SelectItem value="es">Spanish</SelectItem>
             <SelectItem value="fr">French</SelectItem>
@@ -163,13 +176,13 @@ export function SearchTab() {
           </SelectContent>
         </Select>
 
-        <Select value={filters.freshness || ''} onValueChange={(v) => handleFilterChange('freshness', v || undefined)}>
+        <Select value={filters.freshness || 'any'} onValueChange={(v) => handleFilterChange('freshness', v === 'any' ? undefined : v)}>
           <SelectTrigger className="w-32">
             <Calendar className="h-4 w-4 mr-2" />
             <SelectValue placeholder="Freshness" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Any time</SelectItem>
+            <SelectItem value="any">Any time</SelectItem>
             <SelectItem value="1h">Past hour</SelectItem>
             <SelectItem value="24h">Past 24 hours</SelectItem>
             <SelectItem value="7d">Past week</SelectItem>
@@ -224,38 +237,50 @@ export function SearchTab() {
           ))
         ) : (
           results.map((result) => (
-            <Card key={result.id} className="hover:shadow-lg transition-shadow cursor-pointer"
+            <Card key={result.article_id} className="hover:shadow-lg transition-shadow cursor-pointer"
                   onClick={() => window.open(result.url, '_blank')}>
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold mb-2 text-blue-600 dark:text-blue-400">
                   {result.title}
                 </h3>
                 
-                <div 
-                  className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-3"
-                  dangerouslySetInnerHTML={{ 
-                    __html: highlightText(result.content, result.highlights || [])
-                  }}
-                />
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-3">
+                  {result.snippet}
+                </p>
                 
                 <div className="flex flex-wrap gap-2 items-center text-xs">
                   <Badge variant="outline">{result.source}</Badge>
                   <span className="text-gray-500">{formatDate(result.published_at)}</span>
-                  {result.language && (
-                    <Badge variant="secondary">{result.language.toUpperCase()}</Badge>
+                  {result.lang && (
+                    <Badge variant="secondary">{result.lang.toUpperCase()}</Badge>
                   )}
-                  {result.score > 0.8 && (
-                    <Badge variant="default">High relevance</Badge>
+                  <Badge variant="default" className="text-xs">
+                    {Math.round(result.relevance_score * 100)}% match
+                  </Badge>
+                  {result.rule_score >= 80 && (
+                    <Badge variant="default" className="bg-yellow-500">
+                      ⭐ High Score
+                    </Badge>
                   )}
                 </div>
 
-                {result.reasons && result.reasons.length > 0 && (
+                {result.why_chips && result.why_chips.length > 0 && (
                   <div className="flex gap-2 mt-3">
-                    {result.reasons.map((reason, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">
-                        WHY: {reason}
-                      </Badge>
-                    ))}
+                    {result.why_chips.map((chip, i) => {
+                      const chipLabels: { [key: string]: string } = {
+                        'high_relevance': '🎯 Highly Relevant',
+                        'semantic_match': '🧠 Semantic Match',
+                        'high_score': '⭐ High Score',
+                        'interesting': '💡 Interesting',
+                        'fresh': '🆕 Fresh',
+                        'content_match': '📝 Content Match'
+                      }
+                      return (
+                        <Badge key={i} variant="outline" className="text-xs">
+                          {chipLabels[chip] || chip}
+                        </Badge>
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>
