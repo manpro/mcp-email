@@ -91,6 +91,10 @@ services:
       IMAGE_ENABLE_REVALIDATION: ${IMAGE_ENABLE_REVALIDATION:-true}
       IMAGE_REVALIDATE_AFTER_HOURS: ${IMAGE_REVALIDATE_AFTER_HOURS:-168}
       WEAVIATE_URL: http://weaviate:8080
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      OPENAI_MAX_TOKENS: ${OPENAI_MAX_TOKENS:-1000}
+      OPENAI_TEMPERATURE: ${OPENAI_TEMPERATURE:-0.1}
     volumes:
       - ./config:/app/config
       - image_cache:/data/image-cache

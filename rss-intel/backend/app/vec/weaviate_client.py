@@ -1,6 +1,7 @@
 """Weaviate client and schema management"""
 import weaviate
 import weaviate.classes.config as wvc
+import weaviate.classes.query as wvq
 from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 import logging
@@ -240,7 +241,7 @@ class WeaviateManager:
             
             if lang:
                 where_conditions.append(
-                    wvc.query.Filter.by_property("lang").equal(lang)
+                    wvq.Filter.by_property("lang").equal(lang)
                 )
             
             if freshness_days:
@@ -251,12 +252,12 @@ class WeaviateManager:
                     day=cutoff_date.day - freshness_days
                 )
                 where_conditions.append(
-                    wvc.query.Filter.by_property("publishedAt").greater_than(cutoff_date)
+                    wvq.Filter.by_property("publishedAt").greater_than(cutoff_date)
                 )
             
             if min_score is not None:
                 where_conditions.append(
-                    wvc.query.Filter.by_property("score").greater_or_equal(min_score)
+                    wvq.Filter.by_property("score").greater_or_equal(min_score)
                 )
             
             # Combine conditions
@@ -265,17 +266,25 @@ class WeaviateManager:
                 if len(where_conditions) == 1:
                     where_filter = where_conditions[0]
                 else:
-                    where_filter = wvc.query.Filter.all_of(where_conditions)
+                    where_filter = wvq.Filter.all_of(where_conditions)
             
             # Perform hybrid search
-            response = self.collection.query.hybrid(
-                query=query,
-                vector=vector,
-                alpha=alpha,
-                limit=limit,
-                where=where_filter,
-                return_metadata=wvc.query.MetadataQuery(score=True, explain_score=True)
-            )
+            if where_filter:
+                response = self.collection.query.hybrid(
+                    query=query,
+                    vector=vector,
+                    alpha=alpha,
+                    limit=limit,
+                    return_metadata=wvq.MetadataQuery(score=True, explain_score=True)
+                ).where(where_filter)
+            else:
+                response = self.collection.query.hybrid(
+                    query=query,
+                    vector=vector,
+                    alpha=alpha,
+                    limit=limit,
+                    return_metadata=wvq.MetadataQuery(score=True, explain_score=True)
+                )
             
             # Format results
             results = []
@@ -307,7 +316,7 @@ class WeaviateManager:
         try:
             # Delete by article ID
             self.collection.data.delete_many(
-                where=wvc.query.Filter.by_property("articleId").equal(str(article_id))
+                where=wvq.Filter.by_property("articleId").equal(str(article_id))
             )
             
             logger.info(f"Deleted chunks for article {article_id}")

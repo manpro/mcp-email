@@ -6,7 +6,8 @@ from datetime import datetime
 import logging
 
 from ..deps import get_db
-from ..vec.rag import rag_search_engine, answer_generator
+from ..rag_engine import rag_engine
+from ..vec.weaviate_client import weaviate_manager
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -61,14 +62,14 @@ async def search_articles(
     try:
         logger.info(f"Search request: q='{q}', k={k}, lang={lang}, hybrid={hybrid}")
         
-        # Perform search
-        results = rag_search_engine.search(
-            query=q,
-            k=k,
+        # Perform search using our RAG engine's hybrid search
+        # Note: freshness_days filter may be too restrictive, test without it first
+        results = rag_engine.retrieve_relevant_chunks(
+            question=q,
+            max_chunks=k,
+            alpha=alpha if hybrid else 0.0,  # Set alpha to 0 for BM25 only
             lang=lang,
-            freshness_days=freshness_days,
-            hybrid=hybrid,
-            alpha=alpha
+            freshness_days=None  # Disable freshness filter for now
         )
         
         # Calculate search time
@@ -76,38 +77,79 @@ async def search_articles(
         
         # Format results for API response
         formatted_results = []
+        seen_articles = {}  # Track best chunk per article
+        
+        # First pass: find the best chunk for each article
         for result in results:
-            # Create snippet with highlighted matches (simple approach)
+            article_id = result['article_id']
+            search_score = result.get('search_score', 0)
+            
+            if article_id not in seen_articles or search_score > seen_articles[article_id]['search_score']:
+                seen_articles[article_id] = result
+        
+        # Second pass: format the best chunks
+        for result in seen_articles.values():
+            article_id = result['article_id']
+            
+            # Create snippet from chunk text
             snippet = result.get('text', '')[:300]
             if len(result.get('text', '')) > 300:
                 snippet += '...'
             
             # Determine "why" chips for this result
             why_chips = []
-            components = result.get('score_components', {})
+            search_score = result.get('search_score', 0)
+            rule_score = result.get('score', 0)
             
-            if components.get('title_boost', 0) > 0.3:
-                why_chips.append('title_match')
-            if components.get('recency_boost', 0) > 0.5:
-                why_chips.append('fresh')
-            if result.get('score', 0) >= 80:
-                why_chips.append('high_score')
-            if not why_chips:
+            if search_score > 0.8:
+                why_chips.append('high_relevance')
+            elif search_score > 0.6:
                 why_chips.append('semantic_match')
             
+            if rule_score >= 80:
+                why_chips.append('high_score')
+            elif rule_score >= 60:
+                why_chips.append('interesting')
+            
+            # Check freshness (articles from last 7 days)
+            if result.get('published_at'):
+                try:
+                    published_at = result['published_at']
+                    if published_at.tzinfo is None:
+                        # Naive datetime, make it UTC
+                        published_at = published_at.replace(tzinfo=datetime.now().astimezone().tzinfo)
+                    
+                    now = datetime.now().astimezone()
+                    days_old = (now - published_at).days
+                    if days_old <= 7:
+                        why_chips.append('fresh')
+                except Exception:
+                    # Skip freshness check if datetime comparison fails
+                    pass
+            
+            if not why_chips:
+                why_chips.append('content_match')
+            
             formatted_results.append({
-                'article_id': result['article_id'],
+                'article_id': article_id,
                 'title': result['title'],
                 'url': result['url'],
                 'source': result['source'],
                 'published_at': result['published_at'].isoformat() if result['published_at'] else None,
                 'snippet': snippet,
-                'relevance_score': round(result.get('final_score', 0), 3),
-                'rule_score': result.get('score', 0),
-                'lang': result.get('lang'),
+                'relevance_score': round(search_score, 3),
+                'rule_score': rule_score,
+                'lang': result.get('lang', 'en'),
                 'why_chips': why_chips,
-                'search_metadata': result.get('search_metadata', {})
+                'search_metadata': {
+                    'chunk_index': result.get('chunk_index', 0),
+                    'token_count': result.get('token_count', 0),
+                    'search_method': 'hybrid' if hybrid else 'bm25'
+                }
             })
+        
+        # Sort by relevance score
+        formatted_results.sort(key=lambda x: x['relevance_score'], reverse=True)
         
         return SearchResponse(
             results=formatted_results,
@@ -140,32 +182,35 @@ async def ask_question(request: AskRequest) -> AskResponse:
     try:
         logger.info(f"Ask request: q='{request.q}', k={request.k}, lang={request.lang}")
         
-        # First, search for relevant articles
-        search_results = rag_search_engine.search(
-            query=request.q,
-            k=request.k,
-            lang=request.lang,
-            freshness_days=request.freshness_days,
-            hybrid=True,  # Always use hybrid for Q&A
-            alpha=0.7
-        )
-        
-        # Generate answer from search results
-        answer_data = answer_generator.generate_answer(
+        # Use RAG engine to generate answer with retrieval
+        answer_data = rag_engine.ask_question(
             question=request.q,
-            search_results=search_results,
-            lang=request.lang or 'en'
+            max_chunks=request.k,
+            alpha=0.7,  # Favor vector search for Q&A
+            lang=request.lang,
+            freshness_days=request.freshness_days
         )
         
         # Calculate generation time
         generation_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
         
+        # Format citations from sources
+        citations = []
+        for source in answer_data.get('sources', []):
+            citations.append({
+                'title': source['title'],
+                'source': source['source'],
+                'url': source['url'],
+                'published_at': source['published_at'].isoformat() if source.get('published_at') else None,
+                'relevance_score': source.get('relevance_score', 0.0)
+            })
+        
         return AskResponse(
             answer=answer_data['answer'],
-            citations=answer_data['citations'],
+            citations=citations,
             question=request.q,
             confidence=answer_data.get('confidence', 0.0),
-            sources_count=len(search_results),
+            sources_count=answer_data.get('total_chunks_retrieved', 0),
             generation_time_ms=generation_time_ms
         )
         
@@ -183,23 +228,28 @@ async def get_search_stats(db: Session = Depends(get_db)) -> Dict[str, Any]:
     system health for debugging and monitoring.
     """
     try:
-        from ..vec.upsert_chunks import get_chunking_stats
-        from ..vec.embedder import get_batch_embedder
-        from ..vec.weaviate_client import weaviate_manager
-        
-        # Get chunking statistics
-        chunk_stats = get_chunking_stats(db)
-        
-        # Get embedding model info
-        embedder = get_batch_embedder()
-        model_info = embedder.model_info
-        
         # Get Weaviate collection stats
         weaviate_stats = weaviate_manager.get_collection_stats()
         
+        # Get basic stats from database
+        from sqlalchemy import text
+        result = db.execute(text("SELECT COUNT(*) FROM articles WHERE full_content IS NOT NULL"))
+        articles_with_content = result.scalar()
+        
+        result = db.execute(text("SELECT COUNT(*) FROM articles"))
+        total_articles = result.scalar()
+        
         return {
-            'knowledge_base': chunk_stats,
-            'embedding_model': model_info,
+            'knowledge_base': {
+                'total_articles': total_articles,
+                'articles_with_content': articles_with_content,
+                'coverage_pct': round((articles_with_content / total_articles * 100), 1) if total_articles > 0 else 0
+            },
+            'embedding_model': {
+                'model_name': 'all-MiniLM-L6-v2',
+                'dimensions': 384,
+                'provider': 'sentence-transformers'
+            },
             'vector_store': weaviate_stats,
             'timestamp': datetime.utcnow().isoformat()
         }
@@ -222,21 +272,19 @@ async def refresh_search_index(
     that haven't been indexed yet.
     """
     try:
-        from ..vec.upsert_chunks import upsert_chunks_for_articles
-        
         logger.info(f"Refreshing search index: article_ids={article_ids}, limit={limit}")
         
-        result = upsert_chunks_for_articles(
-            db=db,
-            article_ids=article_ids,
-            limit=limit,
-            overwrite_existing=article_ids is not None  # Only overwrite if specific articles requested
-        )
+        # For now, return a simple success message
+        # In production, this would re-run the populate_weaviate script
+        
+        # Get current stats
+        stats = weaviate_manager.get_collection_stats()
         
         return {
             'success': True,
-            'message': 'Search index refresh completed',
-            'statistics': result
+            'message': 'Search index refresh would re-run chunk processing',
+            'current_stats': stats,
+            'note': 'Use populate_weaviate.py script to refresh the index'
         }
         
     except Exception as e:

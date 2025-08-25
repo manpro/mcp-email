@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     # Weaviate
     weaviate_url: str = "http://weaviate:8080"
     
+    # OpenAI
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o-mini"  # Cost-effective model for Q&A
+    openai_max_tokens: int = 1000
+    openai_temperature: float = 0.1  # Low temperature for factual responses
+    
     # Backend
     backend_port: int = 8000
     
