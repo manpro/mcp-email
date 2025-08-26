@@ -1,0 +1,13 @@
+[Unit]
+Description=Cloudflare Tunnel for RSS Intelligence
+After=network.target
+
+[Service]
+Type=simple
+User=micke
+ExecStart=/home/micke/claude-env/cloudflared tunnel --config /home/micke/claude-env/rss-intel/cloudflare-tunnel.yml run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
