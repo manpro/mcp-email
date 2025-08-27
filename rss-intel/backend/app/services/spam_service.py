@@ -9,7 +9,8 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, desc
 
-from ..models.spam import SpamReport, SpamDetectionStats
+from ..store import SpamReport
+from ..store import SpamDetectionStats
 from ..store import Article
 from ..intelligence import spam_detector
 

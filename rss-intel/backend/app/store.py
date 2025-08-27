@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ARRAY, Index, func, Boolean, BigInteger, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ARRAY, Index, func, Boolean, BigInteger, Float, ForeignKey, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.dialects.postgresql import JSONB
@@ -7,6 +7,47 @@ from datetime import datetime
 import hashlib
 
 Base = declarative_base()
+
+# Avoid circular imports by defining SpamReport here instead
+
+class SpamReport(Base):
+    """Spam detection reports for articles - matches existing database schema"""
+    __tablename__ = 'spam_reports'
+
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False, unique=True)
+    reported_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    source = Column(String(50), nullable=False)  # Source of the spam report
+    reason = Column(String(100), nullable=False)  # Reason for spam report
+    report_count = Column(Integer, nullable=False)  # Number of reports
+    metadata = Column(JSONB, nullable=True)  # Additional metadata
+    
+    # Relationship
+    article = relationship("Article", back_populates="spam_reports")
+
+class SpamDetectionStats(Base):
+    """Daily statistics for spam detection performance"""
+    __tablename__ = 'spam_detection_stats'
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, unique=True, index=True)
+    
+    # Basic counts
+    total_articles_checked = Column(Integer, nullable=False, default=0)
+    spam_detected_count = Column(Integer, nullable=False, default=0)
+    false_positives = Column(Integer, nullable=False, default=0)
+    false_negatives = Column(Integer, nullable=False, default=0)
+    
+    # Quality metrics
+    avg_spam_probability = Column(Float, nullable=True)
+    avg_content_score = Column(Float, nullable=True)
+    
+    # Signal analysis
+    signal_type_counts = Column(JSONB, nullable=True)  # Count of each signal type detected
+    
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 class Story(Base):
     __tablename__ = "stories"
@@ -76,8 +117,9 @@ class Article(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
-    # Relationship
+    # Relationships
     story = relationship("Story", back_populates="articles")
+    spam_reports = relationship("SpamReport", back_populates="article", cascade="all, delete-orphan")
     
     __table_args__ = (
         Index('ix_article_score_published', 'score_total', 'published_at'),

@@ -11,7 +11,8 @@ from pydantic import BaseModel
 
 from ..deps import get_db
 from ..services.spam_service import SpamService
-from ..models.spam import SpamReport, SpamDetectionStats
+from ..store import SpamReport
+from ..store import SpamDetectionStats
 from ..store import Article
 
 router = APIRouter()
