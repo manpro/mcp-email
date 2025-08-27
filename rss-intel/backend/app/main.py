@@ -108,9 +108,9 @@ app.include_router(ab_testing_router, tags=["ab_testing"])
 app.include_router(intelligence_router, prefix="/api/intelligence", tags=["intelligence"])
 app.include_router(cache_router, tags=["cache"])
 
-# Import and include admin router
-from .api.admin import router as admin_router
-app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+# Admin router temporarily disabled due to spam detection conflicts
+# from .api.admin import router as admin_router
+# app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
 
 # Import and include source health monitoring router
 from .api.source_health import router as source_health_router
@@ -344,14 +344,11 @@ async def get_downvoted_articles(
 ):
     """Get articles that have been downvoted for admin review"""
     from sqlalchemy import and_
-    from .store import Article as ArticleModel, SpamReport
+    from .store import Article as ArticleModel  # SpamReport disabled
     
-    # Query articles with downvoted flag, excluding spam
-    query = db.query(ArticleModel).outerjoin(
-        SpamReport, ArticleModel.id == SpamReport.article_id
-    ).filter(
-        ArticleModel.flags.op('->>')('downvoted') == 'true',
-        SpamReport.id.is_(None)  # Exclude spam-reported articles
+    # Query articles with downvoted flag (spam filtering disabled)
+    query = db.query(ArticleModel).filter(
+        ArticleModel.flags.op('->>')('downvoted') == 'true'
     ).order_by(ArticleModel.created_at.desc())
     
     total = query.count()
@@ -392,7 +389,7 @@ async def get_trending_articles(
 ):
     """Get trending articles based on recent engagement and high scores"""
     from sqlalchemy import and_, func
-    from .store import Article as ArticleModel, Event, SpamReport
+    from .store import Article as ArticleModel, Event  # SpamReport disabled
     from datetime import datetime, timezone, timedelta
     
     # Calculate cutoff time
@@ -415,12 +412,9 @@ async def get_trending_articles(
     ).outerjoin(
         Event, 
         and_(Event.article_id == ArticleModel.id, Event.created_at >= cutoff)
-    ).outerjoin(
-        SpamReport, ArticleModel.id == SpamReport.article_id
     ).filter(
         ArticleModel.score_total >= min_score,
-        ArticleModel.published_at >= cutoff,  # Only recent articles
-        SpamReport.id.is_(None)  # Exclude spam-reported articles
+        ArticleModel.published_at >= cutoff  # Only recent articles (spam filtering disabled)
     ).group_by(ArticleModel.id).order_by(
         func.coalesce(func.sum(
             func.case(

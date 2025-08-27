@@ -9,8 +9,8 @@ from datetime import datetime, date, timedelta
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, desc
 
-from ..store import SpamReport
-from ..store import SpamDetectionStats
+# from ..store import SpamReport  # Disabled - model removed
+# from ..store import SpamDetectionStats  # Disabled - model removed
 from ..store import Article
 from ..intelligence import spam_detector
 

@@ -14,7 +14,7 @@ import numpy as np
 from dataclasses import dataclass
 
 from ..store import Article
-from ..store import SpamReport
+# from ..store import SpamReport  # Disabled - model removed
 from ..intelligence import similarity_detector
 from ..intelligence.semantic_search import semantic_search_engine, SemanticSearchResult
 from .search_cache_service import get_search_cache

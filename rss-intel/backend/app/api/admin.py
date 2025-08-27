@@ -11,8 +11,8 @@ from pydantic import BaseModel
 
 from ..deps import get_db
 from ..services.spam_service import SpamService
-from ..store import SpamReport
-from ..store import SpamDetectionStats
+# from ..store import SpamReport  # Disabled - models removed
+# from ..store import SpamDetectionStats  # Disabled - models removed
 from ..store import Article
 
 router = APIRouter()
