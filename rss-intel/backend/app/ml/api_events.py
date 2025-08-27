@@ -16,7 +16,7 @@ router = APIRouter()
 # Event models
 class EventData(BaseModel):
     article_id: int
-    type: str = Field(..., pattern="^(impression|open|external_click|star|label_add|dismiss|mark_read)$")
+    type: str = Field(..., pattern="^(impression|open|external_click|star|label_add|dismiss|mark_read|downvote|undownvote)$")
     duration_ms: Optional[int] = None
     visible_ms: Optional[int] = None
     scroll_pct: Optional[int] = Field(None, ge=0, le=100)
@@ -178,7 +178,7 @@ async def track_single_interaction(
 ) -> Dict:
     """Track single interaction event"""
     
-    if event_type not in ["open", "external_click", "star", "dismiss", "mark_read"]:
+    if event_type not in ["open", "external_click", "star", "dismiss", "mark_read", "downvote", "undownvote"]:
         raise HTTPException(status_code=400, detail="Invalid event type")
     
     event = EventData(

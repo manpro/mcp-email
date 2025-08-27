@@ -309,16 +309,23 @@ class SpotlightEngine:
     def export_as_json(self, issue: SpotlightIssue) -> Dict[str, Any]:
         """Export spotlight issue as JSON"""
         
-        items = self.db.query(SpotlightItem).filter_by(
-            issue_id=issue.id
-        ).order_by(SpotlightItem.section, SpotlightItem.position).all()
+        # Use direct JOIN query instead of relationships
+        from sqlalchemy import select
+        query = select(SpotlightItem, Article).join(
+            Article, SpotlightItem.article_id == Article.id
+        ).where(
+            SpotlightItem.issue_id == issue.id
+        ).order_by(SpotlightItem.section, SpotlightItem.position)
+        
+        results = self.db.execute(query).all()
         
         must_read_items = []
         also_worth_items = []
         
-        for item in items:
-            article = item.article
+        for item, article in results:
             item_data = {
+                'id': article.id,  # Use article.id directly
+                'freshrss_entry_id': article.freshrss_entry_id,
                 'title': article.title,
                 'url': article.url,
                 'source': article.source,
@@ -362,8 +369,11 @@ class SpotlightEngine:
         SubElement(channel, 'link').text = f"http://localhost:3001/spotlight/{issue.issue_date}"
         SubElement(channel, 'pubDate').text = issue.generated_at.strftime('%a, %d %b %Y %H:%M:%S GMT')
         
-        # Add items
-        items = self.db.query(SpotlightItem).filter_by(
+        # Add items with eager loading of article relationship
+        from sqlalchemy.orm import joinedload
+        items = self.db.query(SpotlightItem).options(
+            joinedload(SpotlightItem.article)
+        ).filter_by(
             issue_id=issue.id
         ).order_by(SpotlightItem.section, SpotlightItem.position).all()
         

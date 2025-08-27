@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     # Weaviate
     weaviate_url: str = "http://weaviate:8080"
     
+    # Redis Cache
+    redis_host: str = "redis"
+    redis_port: int = 6379
+    redis_db: int = 0
+    redis_password: Optional[str] = None
+    
     # OpenAI
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"  # Cost-effective model for Q&A

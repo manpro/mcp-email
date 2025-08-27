@@ -45,18 +45,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
-        const response = await fetch('/api/proxy/auth/status', {
-          credentials: 'include',
-          headers: {
-            'X-User-ID': 'owner' // Fallback for existing sessions
-          }
+        const response = await fetch('/api/auth/status', {
+          credentials: 'include'
         });
         
         if (response.ok) {
           const data = await response.json();
           if (data.authenticated && data.user_id) {
             // Get user details
-            const userResponse = await fetch('/api/proxy/auth/me', {
+            const userResponse = await fetch('/api/auth/me', {
               credentials: 'include'
             });
             
@@ -66,7 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 username: userData.username,
                 preferences: userData.preferences
               });
-            } else {
+            } else if (data.user_id) {
               // Fallback for header-based auth
               setUser({ username: data.user_id });
             }
@@ -84,7 +81,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await fetch('/api/proxy/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = async () => {
     try {
-      await fetch('/api/proxy/auth/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });

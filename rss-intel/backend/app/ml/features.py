@@ -26,6 +26,68 @@ def hash_trick_encode(text: str, n_features: int = 32) -> np.ndarray:
     
     return feature_vec
 
+def extract_quality_features(
+    title: str,
+    content: str,
+    source: str,
+    score_breakdown: Dict[str, Any]
+) -> np.ndarray:
+    """
+    Extract quality-related features for ML models
+    
+    Returns:
+        Feature vector with quality signals
+    """
+    features = []
+    
+    full_text = f"{title} {content}".lower()
+    
+    # 1. Content length features
+    features.append(len(content) if content else 0)  # Content length
+    features.append(len(title) if title else 0)      # Title length
+    features.append(len(content.split()) if content else 0)  # Word count
+    
+    # 2. Quality penalty score (from scoring engine)
+    quality_penalty = score_breakdown.get('quality_penalty', 0)
+    features.append(abs(quality_penalty))  # Absolute penalty value
+    features.append(1 if quality_penalty < -20 else 0)  # Strong penalty flag
+    
+    # 3. Promotional content indicators
+    promo_patterns = ['register now', 'sign up today', 'click here', 'limited time']
+    promo_count = sum(1 for pattern in promo_patterns if pattern in full_text)
+    features.append(promo_count)
+    
+    # 4. Press release indicators
+    pr_patterns = ['announces', 'partnership', 'today announced', 'launches new']
+    pr_count = sum(1 for pattern in pr_patterns if pattern in full_text)
+    features.append(pr_count)
+    
+    # 5. Webinar/event indicators
+    event_patterns = ['webinar', 'register', 'join our', 'virtual event']
+    event_count = sum(1 for pattern in event_patterns if pattern in full_text)
+    features.append(event_count)
+    
+    # 6. URL quality features
+    features.append(len(source))  # URL length
+    features.append(1 if any(param in source for param in ['utm_', '?ref=']) else 0)  # Tracking params
+    
+    # 7. Content quality ratio
+    if content:
+        words = content.split()
+        unique_ratio = len(set(words)) / len(words) if words else 0
+        features.append(unique_ratio)
+    else:
+        features.append(0)
+    
+    # 8. Title capitalization ratio
+    if title:
+        caps_ratio = sum(1 for c in title if c.isupper()) / len(title)
+        features.append(caps_ratio)
+    else:
+        features.append(0)
+    
+    return np.array(features)
+
 def extract_content_features(
     article_embedding: np.ndarray,
     user_embedding: Optional[np.ndarray],

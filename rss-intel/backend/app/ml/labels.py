@@ -134,6 +134,9 @@ def determine_label(events: List) -> int:
             
         elif event_type == 'dismiss':
             has_dismiss = True
+            
+        elif event_type == 'downvote':
+            has_dismiss = True  # Treat downvote as strong negative signal
     
     # Apply labeling rules
     

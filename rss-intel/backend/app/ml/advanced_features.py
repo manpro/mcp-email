@@ -12,6 +12,7 @@ import re
 from collections import Counter
 
 from .embedding import get_article_embedding, compute_similarity
+from .features import extract_quality_features
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class AdvancedFeatureExtractor:
         source: str,
         topics: List[str],
         score_total: int,
+        score_breakdown: Dict[str, Any],
         published_at: datetime,
         has_image: bool
     ) -> np.ndarray:
@@ -192,6 +194,17 @@ class AdvancedFeatureExtractor:
             float(score_total / 200),  # Normalize rule score
             float(min(1.0, title_chars / 100)),  # Title length normalized
         ])
+        
+        # Quality features - add to ML features
+        try:
+            quality_feats = extract_quality_features(
+                title, content or "", source, score_breakdown
+            )
+            features.extend(quality_feats.tolist())
+        except Exception as e:
+            logger.error(f"Error extracting quality features: {e}")
+            # Add zeros if quality feature extraction fails
+            features.extend([0.0] * 10)  # Match expected quality feature count
         
         return np.array(features, dtype=np.float32)
     

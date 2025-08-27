@@ -384,3 +384,182 @@ async def merge_stories(
         "articles_moved": articles_moved,
         "message": f"Merged story {story_id} into story {target_story_id}, moved {articles_moved} articles"
     }
+
+
+@router.post("/articles/{article_id}/report-spam")
+async def report_spam(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """Report an article as spam/advertisement"""
+    
+    # Check article exists
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    try:
+        from sqlalchemy import text
+        
+        # Insert spam report
+        db.execute(text("""
+            INSERT INTO spam_reports (article_id, reported_at, source, reason)
+            VALUES (:article_id, NOW(), 'user_feedback', 'promotional_content')
+            ON CONFLICT (article_id) DO UPDATE SET
+            reported_at = NOW(),
+            report_count = spam_reports.report_count + 1
+        """), {"article_id": article_id})
+        
+        # Apply heavy penalty to quality score
+        if article.score_total is None:
+            article.score_total = -999  # Auto-hide
+        else:
+            article.score_total = min(article.score_total - 500, -999)
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Article reported as spam and hidden from feed",
+            "article_id": article_id,
+            "new_quality_score": article.score_total
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to report spam: {str(e)}")
+
+
+@router.get("/admin/spam-reports")
+async def get_spam_reports(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db)
+):
+    """Get spam reports for admin review"""
+    
+    try:
+        from sqlalchemy import text
+        
+        # Get spam reports with article details
+        reports = db.execute(text("""
+            SELECT 
+                sr.article_id,
+                sr.reported_at,
+                sr.report_count,
+                sr.source,
+                sr.reason,
+                a.title,
+                a.url,
+                a.source as article_source,
+                a.score_total,
+                0.8 as spam_score
+            FROM spam_reports sr
+            JOIN articles a ON sr.article_id = a.id
+            ORDER BY sr.reported_at DESC
+            LIMIT :limit OFFSET :offset
+        """), {
+            "limit": page_size,
+            "offset": (page - 1) * page_size
+        }).fetchall()
+        
+        # Get total count
+        total_result = db.execute(text("SELECT COUNT(*) FROM spam_reports"))
+        total = total_result.scalar()
+        
+        report_list = []
+        for row in reports:
+            report_list.append({
+                "article_id": row.article_id,
+                "title": row.title,
+                "url": row.url,
+                "source": row.article_source,
+                "reported_at": row.reported_at.isoformat() if row.reported_at else None,
+                "report_count": row.report_count,
+                "report_source": row.source,
+                "reason": row.reason,
+                "quality_score": row.score_total,
+                "spam_score": row.spam_score,
+                "ml_metadata": {}
+            })
+        
+        return {
+            "reports": report_list,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get spam reports: {str(e)}")
+
+
+@router.post("/articles/{article_id}/restore")
+async def restore_article(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """Restore an article from spam back to normal feed"""
+    
+    try:
+        # Check article exists
+        article = db.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Reset quality score to neutral if it was heavily penalized
+        if article.score_total is not None and article.score_total < -500:
+            article.score_total = 0
+        
+        # Remove from spam reports
+        from sqlalchemy import text
+        db.execute(text("""
+            DELETE FROM spam_reports WHERE article_id = :article_id
+        """), {"article_id": article_id})
+        
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Article restored to main feed",
+            "article_id": article_id
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to restore article: {str(e)}")
+
+
+@router.delete("/articles/{article_id}")
+async def delete_article(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """Permanently delete an article"""
+    
+    try:
+        # Check article exists
+        article = db.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Delete spam reports first (cascade should handle this, but be explicit)
+        from sqlalchemy import text
+        db.execute(text("""
+            DELETE FROM spam_reports WHERE article_id = :article_id
+        """), {"article_id": article_id})
+        
+        # Delete the article
+        db.delete(article)
+        db.commit()
+        
+        return {
+            "status": "success",
+            "message": "Article permanently deleted",
+            "article_id": article_id
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete article: {str(e)}")

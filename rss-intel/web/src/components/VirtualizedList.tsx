@@ -10,7 +10,7 @@ import ScoreBadge from './ScoreBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/tooltip';
-import { Star, ExternalLink, Check } from 'lucide-react';
+import { Star, ExternalLink, Check, ThumbsDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type ViewMode = 'list' | 'cards';
@@ -22,6 +22,8 @@ interface VirtualizedListProps {
   onExtractContent?: (articleId: number) => void;
   loading: string | null;
   imageProxyBase?: string;
+  onArticleClick?: (article: Article) => void;
+  onReportSpam?: (articleId: number) => void;
 }
 
 export function VirtualizedList({
@@ -30,7 +32,9 @@ export function VirtualizedList({
   onAction,
   onExtractContent,
   loading,
-  imageProxyBase = "/img"
+  imageProxyBase = "/img",
+  onArticleClick,
+  onReportSpam
 }: VirtualizedListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -90,14 +94,12 @@ export function VirtualizedList({
         </div>
 
         <h3 className="font-medium text-sm leading-tight mb-2">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-primary-600 hover:underline"
+          <button
+            onClick={() => onArticleClick?.(article)}
+            className="hover:text-primary-600 hover:underline text-left"
           >
             {article.title}
-          </a>
+          </button>
         </h3>
 
         {article.content && (
@@ -122,6 +124,11 @@ export function VirtualizedList({
             {article.flags?.starred && (
               <Badge className="text-xs bg-yellow-100 text-yellow-800">
                 ⭐ Starred
+              </Badge>
+            )}
+            {article.flags?.downvoted && (
+              <Badge className="text-xs bg-red-100 text-red-800">
+                👎 Poor Quality
               </Badge>
             )}
             {article.topics?.slice(0, 3).map((topic) => (
@@ -183,8 +190,33 @@ export function VirtualizedList({
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => onAction(
+                article.freshrss_entry_id,
+                article.flags?.downvoted ? 'undownvote' : 'downvote'
+              )}
+              disabled={isLoading}
+              className={cn(
+                "px-2",
+                article.flags?.downvoted 
+                  ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                  : 'hover:bg-gray-100'
+              )}
+              title={article.flags?.downvoted ? "Remove downvote" : "Mark as poor quality"}
+            >
+              <ThumbsDown 
+                className={cn(
+                  "h-4 w-4",
+                  article.flags?.downvoted ? "fill-current" : ""
+                )} 
+              />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
               asChild
               className="px-2"
+              title="Open original article"
             >
               <a
                 href={article.url}
@@ -213,6 +245,8 @@ export function VirtualizedList({
               article={article}
               onAction={onAction}
               onExtractContent={onExtractContent}
+              onArticleClick={onArticleClick}
+              onReportSpam={onReportSpam}
               loading={loading === article.freshrss_entry_id || loading === `extract_${article.id}`}
               imageProxyBase={imageProxyBase}
             />

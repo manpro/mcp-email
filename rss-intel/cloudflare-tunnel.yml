@@ -1,0 +1,11 @@
+tunnel: cd82b107-50bd-485a-b006-73518620c8dd
+credentials-file: /home/micke/.cloudflared/cd82b107-50bd-485a-b006-73518620c8dd.json
+
+ingress:
+  - hostname: rss.manprogroup.com
+    service: https://localhost:3002
+    originRequest:
+      noTLSVerify: true
+  - hostname: ssh.manprogroup.com
+    service: http://localhost:7681
+  - service: http_status:404

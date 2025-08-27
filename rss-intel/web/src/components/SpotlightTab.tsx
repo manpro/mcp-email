@@ -18,7 +18,13 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-export function SpotlightTab() {
+import { Article } from '@/lib/api';
+
+interface SpotlightTabProps {
+  onArticleClick?: (article: Article) => void;
+}
+
+export function SpotlightTab({ onArticleClick }: SpotlightTabProps = {}) {
   const [digest, setDigest] = useState<SpotlightDigest | null>(null);
   const [stats, setStats] = useState<SpotlightStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +61,7 @@ export function SpotlightTab() {
       toast({
         title: "Spotlight Generated!",
         description: `Created digest with ${result.must_read_count} must-read and ${result.also_worth_count} also-worth articles.`,
+        type: "success",
       });
 
       // Reload data
@@ -64,7 +71,7 @@ export function SpotlightTab() {
       toast({
         title: "Generation Failed",
         description: err.message || 'Failed to generate spotlight digest',
-        variant: "destructive"
+        type: "error"
       });
     } finally {
       setGenerating(false);
@@ -77,13 +84,14 @@ export function SpotlightTab() {
       toast({
         title: "Published!",
         description: "Spotlight digest has been published.",
+        type: "success",
       });
       await loadSpotlight();
     } catch (err: any) {
       toast({
         title: "Publish Failed",
         description: err.message || 'Failed to publish digest',
-        variant: "destructive"
+        type: "error"
       });
     }
   };
@@ -288,6 +296,7 @@ export function SpotlightTab() {
                     item={item} 
                     section="must_read"
                     rank={index + 1}
+                    onArticleClick={onArticleClick}
                   />
                 ))}
               </div>
@@ -310,6 +319,7 @@ export function SpotlightTab() {
                     item={item} 
                     section="also_worth"
                     rank={index + 1}
+                    onArticleClick={onArticleClick}
                   />
                 ))}
               </div>

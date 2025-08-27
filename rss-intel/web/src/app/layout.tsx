@@ -1,18 +1,11 @@
-import type { Metadata } from 'next'
+'use client';
+
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: 'RSS Intelligence Dashboard',
-  description: 'Smart RSS feed aggregation and scoring',
-  icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.ico',
-  },
-}
 
 export default function RootLayout({
   children,
@@ -20,25 +13,18 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <div className="min-h-screen bg-gray-50">
-          <header className="bg-white shadow-sm border-b">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-16">
-                <h1 className="text-xl font-semibold text-gray-900">
-                  RSS Intelligence Dashboard
-                </h1>
-                <div className="flex items-center space-x-4">
-                  <span className="text-sm text-gray-500">Auto-refresh: 10 min</span>
-                </div>
-              </div>
-            </div>
-          </header>
-          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {children}
-          </main>
-        </div>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <title>RSS Intelligence</title>
+        <meta name="description" content="Your personalized content hub with AI-powered insights" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </head>
+      <body className={inter.className} suppressHydrationWarning>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

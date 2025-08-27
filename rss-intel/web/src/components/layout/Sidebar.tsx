@@ -13,12 +13,13 @@ import {
   Beaker,
   Settings,
   Mail,
+  AlertTriangle,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 
-export type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'analytics' | 'experiments' | 'email';
+export type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'analytics' | 'experiments' | 'email' | 'spam';
 
 interface NavigationItem {
   name: string;
@@ -80,6 +81,12 @@ const navigationItems: NavigationItem[] = [
     tab: 'experiments',
     badge: 'A/B',
     description: 'A/B testing and optimization',
+  },
+  {
+    name: 'Spam',
+    icon: AlertTriangle,
+    tab: 'spam',
+    description: 'Manage spam and unwanted content',
   },
 ];
 

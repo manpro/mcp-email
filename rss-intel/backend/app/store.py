@@ -216,6 +216,21 @@ class ImageDiagnostic(Base):
     article = relationship("Article")
 
 
+class SpamReport(Base):
+    __tablename__ = "spam_reports"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False, unique=True)
+    reported_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    source = Column(String(50), nullable=False)  # 'user_feedback', 'ml_detection', etc.
+    reason = Column(String(100), nullable=False)  # 'promotional_content', 'spam', etc.
+    report_count = Column(Integer, default=1, nullable=False)
+    report_metadata = Column(JSONB, nullable=True)
+    
+    # Relationship
+    article = relationship("Article")
+
+
 class ArticleStore:
     def __init__(self, db: Session):
         self.db = db
@@ -254,9 +269,15 @@ class ArticleStore:
         query: Optional[str] = None,
         has_image: Optional[bool] = None,
         page: int = 1,
-        page_size: int = 50
+        page_size: int = 50,
+        include_spam: bool = False
     ) -> tuple[List[Article], int]:
         q = self.db.query(Article)
+        
+        # Exclude spam-reported articles unless explicitly requested
+        if not include_spam:
+            q = q.outerjoin(SpamReport, Article.id == SpamReport.article_id)\
+                 .filter(SpamReport.id.is_(None))
         
         if min_score is not None:
             q = q.filter(Article.score_total >= min_score)

@@ -8,7 +8,7 @@ import { Tooltip } from '@/components/ui/tooltip';
 import { ArticleImage } from './ArticleImage';
 import { ClientTime } from './ClientTime';
 import ScoreBadge from './ScoreBadge';
-import { Star, ExternalLink, Check, BookOpen, Download } from 'lucide-react';
+import { Star, ExternalLink, Check, BookOpen, Download, ThumbsDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ArticleCardProps {
@@ -17,6 +17,8 @@ interface ArticleCardProps {
   loading: boolean;
   imageProxyBase?: string;
   onExtractContent?: (articleId: number) => void;
+  onArticleClick?: (article: Article) => void;
+  onReportSpam?: (articleId: number) => void;
 }
 
 export function ArticleCard({
@@ -24,7 +26,9 @@ export function ArticleCard({
   onAction,
   loading,
   imageProxyBase = "/img",
-  onExtractContent
+  onExtractContent,
+  onArticleClick,
+  onReportSpam
 }: ArticleCardProps) {
   const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const imageUrl = article.image_proxy_path 
@@ -82,14 +86,12 @@ export function ArticleCard({
 
         {/* Title */}
         <h3 className="font-semibold text-sm leading-tight mb-2 line-clamp-2">
-          <a
-            href={article.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-primary-600 hover:underline"
+          <button
+            onClick={() => onArticleClick?.(article)}
+            className="hover:text-primary-600 hover:underline text-left"
           >
             {article.title}
-          </a>
+          </button>
         </h3>
 
         {/* Content preview */}
@@ -114,6 +116,11 @@ export function ArticleCard({
           {article.flags?.starred && (
             <Badge className="text-xs bg-yellow-100 text-yellow-800">
               ⭐ Starred
+            </Badge>
+          )}
+          {article.flags?.downvoted && (
+            <Badge className="text-xs bg-red-100 text-red-800">
+              👎 Poor Quality
             </Badge>
           )}
           {article.topics?.slice(0, 2).map((topic) => (
@@ -187,6 +194,30 @@ export function ArticleCard({
             </Button>
           )}
           
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onAction(
+              article.freshrss_entry_id,
+              article.flags?.downvoted ? 'undownvote' : 'downvote'
+            )}
+            disabled={loading}
+            className={cn(
+              "px-3",
+              article.flags?.downvoted 
+                ? 'text-red-600 bg-red-50 hover:bg-red-100' 
+                : 'hover:bg-gray-100'
+            )}
+            title={article.flags?.downvoted ? "Remove downvote" : "Mark as poor quality"}
+          >
+            <ThumbsDown 
+              className={cn(
+                "h-4 w-4",
+                article.flags?.downvoted ? "fill-current" : ""
+              )} 
+            />
+          </Button>
+          
           {article.extraction_status !== 'success' && !article.full_content && onExtractContent && (
             <Button
               variant="ghost"
@@ -203,10 +234,10 @@ export function ArticleCard({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => onAction(article.freshrss_entry_id, 'read')}
+            onClick={() => onArticleClick?.(article)}
             disabled={loading}
             className="px-3"
-            title="Read article"
+            title="Read saved copy"
           >
             <BookOpen className="h-4 w-4" />
           </Button>
@@ -216,6 +247,7 @@ export function ArticleCard({
             size="sm"
             asChild
             className="px-3"
+            title="Open original article"
           >
             <a
               href={article.url}
@@ -225,6 +257,19 @@ export function ArticleCard({
               <ExternalLink className="h-4 w-4" />
             </a>
           </Button>
+
+          {onReportSpam && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onReportSpam(article.id)}
+              disabled={loading}
+              className="px-3 text-orange-600 hover:bg-orange-50"
+              title="Report as spam/advertisement"
+            >
+              <AlertTriangle className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardFooter>
     </Card>

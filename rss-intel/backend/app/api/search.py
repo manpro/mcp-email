@@ -12,6 +12,7 @@ from ..personalization_service import get_personalization_service
 from ..auth import get_current_user
 from sqlalchemy.orm import Session
 from fastapi import Request
+from ..cache_service import cache_service
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,20 @@ async def search_articles(
         # Get current user
         user_id = get_current_user(request)
         logger.info(f"Search request: q='{q}', k={k}, lang={lang}, hybrid={hybrid}, personalized={personalized}, user={user_id}")
+        
+        # Check cache first (skip if personalized to avoid user data leaks)
+        cache_key_data = {
+            'q': q, 'k': k, 'lang': lang, 'hybrid': hybrid, 'alpha': alpha,
+            'freshness_days': freshness_days, 'content_type': content_type
+        }
+        
+        if not personalized:
+            cached_result = cache_service.get_search_result(q, cache_key_data)
+            if cached_result:
+                logger.info(f"Returning cached search result for: {q}")
+                # Update search time to reflect cache hit
+                cached_result['search_time_ms'] = int((datetime.now() - start_time).total_seconds() * 1000)
+                return SearchResponse(**cached_result)
         
         # Perform search using our RAG engine's hybrid search
         # Note: freshness_days filter may be too restrictive, test without it first
@@ -173,18 +188,24 @@ async def search_articles(
                 logger.error(f"Personalization failed: {e}")
                 # Continue with non-personalized results
         
-        return SearchResponse(
-            results=formatted_results,
-            query=q,
-            total_found=len(results),
-            search_time_ms=search_time_ms,
-            filters={
+        response_data = {
+            'results': formatted_results,
+            'query': q,
+            'total_found': len(results),
+            'search_time_ms': search_time_ms,
+            'filters': {
                 'lang': lang,
                 'freshness_days': freshness_days,
                 'hybrid': hybrid,
                 'alpha': alpha
             }
-        )
+        }
+        
+        # Cache non-personalized results
+        if not personalized and len(formatted_results) > 0:
+            cache_service.cache_search_result(q, cache_key_data, response_data)
+        
+        return SearchResponse(**response_data)
         
     except Exception as e:
         logger.error(f"Search error: {e}")
@@ -205,6 +226,20 @@ async def ask_question(request: AskRequest, http_request: Request, db: Session =
         # Get current user
         user_id = get_current_user(http_request)
         logger.info(f"Ask request: q='{request.q}', k={request.k}, lang={request.lang}, user={user_id}")
+        
+        # Check cache first
+        cache_params = {
+            'k': request.k,
+            'lang': request.lang,
+            'freshness_days': request.freshness_days
+        }
+        
+        cached_result = cache_service.get_ask_result(request.q, cache_params)
+        if cached_result:
+            logger.info(f"Returning cached ask result for: {request.q}")
+            # Update generation time to reflect cache hit
+            cached_result['generation_time_ms'] = int((datetime.now() - start_time).total_seconds() * 1000)
+            return AskResponse(**cached_result)
         
         # Use RAG engine to generate answer with retrieval
         answer_data = rag_engine.ask_question(
@@ -233,14 +268,20 @@ async def ask_question(request: AskRequest, http_request: Request, db: Session =
                 'relevance_score': source.get('relevance_score', 0.0)
             })
         
-        return AskResponse(
-            answer=answer_data['answer'],
-            citations=citations,
-            question=request.q,
-            confidence=answer_data.get('confidence', 0.0),
-            sources_count=answer_data.get('total_chunks_retrieved', 0),
-            generation_time_ms=generation_time_ms
-        )
+        response_data = {
+            'answer': answer_data['answer'],
+            'citations': citations,
+            'question': request.q,
+            'confidence': answer_data.get('confidence', 0.0),
+            'sources_count': answer_data.get('total_chunks_retrieved', 0),
+            'generation_time_ms': generation_time_ms
+        }
+        
+        # Cache the response
+        if len(citations) > 0:  # Only cache if we have sources
+            cache_service.cache_ask_result(request.q, cache_params, response_data)
+        
+        return AskResponse(**response_data)
         
     except Exception as e:
         logger.error(f"Ask error: {e}")
@@ -318,3 +359,45 @@ async def refresh_search_index(
     except Exception as e:
         logger.error(f"Index refresh error: {e}")
         raise HTTPException(status_code=500, detail=f"Index refresh failed: {str(e)}")
+
+
+@router.get("/search/options")
+async def get_search_options():
+    """
+    Get available search and filter options for the frontend
+    """
+    try:
+        # Get basic stats
+        stats = weaviate_manager.get_collection_stats()
+        
+        return {
+            "filters": {
+                "categories": ["Technology", "AI Research", "Cryptocurrency", "Blockchain", "DeFi", "NFT"],
+                "languages": ["en", "sv"],
+                "date_ranges": [
+                    {"label": "Last 24 hours", "value": "1d"},
+                    {"label": "Last week", "value": "7d"}, 
+                    {"label": "Last month", "value": "30d"},
+                    {"label": "Last 3 months", "value": "90d"},
+                    {"label": "All time", "value": "all"}
+                ]
+            },
+            "search_modes": [
+                {"label": "Hybrid (Recommended)", "value": "hybrid"},
+                {"label": "Semantic", "value": "semantic"},
+                {"label": "Keyword", "value": "keyword"}
+            ],
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Search options error: {e}")
+        return {
+            "filters": {
+                "categories": ["Technology", "Cryptocurrency"],
+                "languages": ["en"],
+                "date_ranges": [{"label": "All time", "value": "all"}]
+            },
+            "search_modes": [{"label": "Hybrid", "value": "hybrid"}],
+            "stats": {"total_chunks": 0}
+        }

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from contextlib import asynccontextmanager
@@ -7,8 +7,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from pathlib import Path
 import os
+import asyncio
 
-from .deps import get_db
+from .deps import get_db, get_db_pool_stats
 from .schemas import (
     Article, ArticleList, DecideRequest, 
     HealthResponse, RefreshResponse, ConfigResponse
@@ -26,6 +27,7 @@ from .ml.api_recommend import router as recommend_router
 # from .api.events import router as events_router  # Events have issues, keep disabled
 from .api.personalization import router as personalization_router
 from .api.search import router as search_router
+from .api.search_options import router as search_options_router
 from .api.stories import router as stories_router
 from .api.spotlight import router as spotlight_router
 from .api.recommend_simple import router as recommend_simple_router
@@ -33,6 +35,14 @@ from .api.user_profile import router as user_profile_router
 from .api.auth import router as auth_router
 from .api.learning import router as learning_router
 from .api.ab_testing import router as ab_testing_router
+from .api.intelligence import router as intelligence_router
+from .api.cache import router as cache_router
+from .websocket_hub import connection_manager, event_broadcaster
+from .events import event_stream, cleanup_events
+from .notifications import (
+    notification_manager, start_notification_event_consumer, 
+    periodic_notification_cleanup, NotificationType, NotificationPriority
+)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,11 +50,30 @@ async def lifespan(app: FastAPI):
     print("Starting RSS Intelligence Backend...")
     scheduler.start()
     await start_learning_scheduler()
+    
+    # Start event stream and WebSocket broadcaster
+    print("Starting real-time event system...")
+    await event_stream.connect()
+    
+    # Start event broadcaster in background
+    asyncio.create_task(event_broadcaster.start())
+    
+    # Start notification system
+    print("Starting notification system...")
+    asyncio.create_task(start_notification_event_consumer())
+    asyncio.create_task(periodic_notification_cleanup())
+    
     yield
+    
     # Shutdown
     print("Shutting down...")
     scheduler.stop()
     await stop_learning_scheduler()
+    
+    # Cleanup event system
+    print("Cleaning up event system...")
+    event_broadcaster.stop()
+    await cleanup_events()
 
 app = FastAPI(
     title="RSS Intelligence Dashboard",
@@ -70,11 +99,38 @@ app.include_router(user_profile_router, tags=["user_profile"])
 # app.include_router(events_router, prefix="/api", tags=["events"])  # Events have issues, keep disabled  
 app.include_router(personalization_router, prefix="/api", tags=["personalization"])
 app.include_router(search_router, tags=["search"])
+app.include_router(search_options_router, tags=["search"])
 app.include_router(stories_router, tags=["stories"])
 app.include_router(spotlight_router, prefix="/api/spotlight", tags=["spotlight"])
 app.include_router(auth_router, tags=["authentication"])
 app.include_router(learning_router, tags=["learning"])
 app.include_router(ab_testing_router, tags=["ab_testing"])
+app.include_router(intelligence_router, prefix="/api/intelligence", tags=["intelligence"])
+app.include_router(cache_router, tags=["cache"])
+
+# Import and include admin router
+from .api.admin import router as admin_router
+app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
+
+# Import and include source health monitoring router
+from .api.source_health import router as source_health_router
+app.include_router(source_health_router, prefix="/api", tags=["source_health"])
+
+# Import and include recommendations router  
+from .api.recommendations import router as recommendations_router
+app.include_router(recommendations_router, prefix="/api", tags=["recommendations"])
+
+# Import and include Fediverse router
+from .api.fediverse import router as fediverse_router
+app.include_router(fediverse_router, prefix="/api", tags=["fediverse"])
+
+# Import and include Vector Search router
+from .api.vector_search import router as vector_search_router
+app.include_router(vector_search_router, prefix="/api", tags=["vector_search"])
+
+# Import and include Trending Analysis router
+from .api.trending import router as trending_router
+app.include_router(trending_router, prefix="/api", tags=["trending"])
 
 @app.get("/health", response_model=HealthResponse)
 async def health_check():
@@ -105,8 +161,16 @@ async def health_check():
     # Check scheduler
     services["scheduler"] = "running" if scheduler.is_running else "stopped"
     
+    # Check Redis cache
+    try:
+        from .cache_service import cache_service
+        cache_stats = cache_service.get_cache_stats()
+        services["redis_cache"] = "active" if cache_stats.get("status") == "active" else "inactive"
+    except:
+        services["redis_cache"] = "inactive"
+    
     return HealthResponse(
-        status="healthy" if all(v in ["healthy", "running"] for v in services.values()) else "degraded",
+        status="healthy" if all(v in ["healthy", "running", "active"] for v in services.values()) else "degraded",
         timestamp=datetime.utcnow(),
         services=services
     )
@@ -131,7 +195,8 @@ async def get_items(
         query=q,
         has_image=has_image,
         page=page,
-        page_size=page_size
+        page_size=page_size,
+        include_spam=False  # Always exclude spam from main feed
     )
     
     return ArticleList(
@@ -220,6 +285,36 @@ async def decide_action(
                 article.flags.pop(request.label, None)
                 db.commit()
             message = f"Label '{request.label}' removed"
+            
+        elif request.action == "downvote":
+            # Downvote doesn't interact with FreshRSS, just local flag
+            success = True
+            article.flags = article.flags or {}
+            article.flags["downvoted"] = True
+            # Add event tracking
+            from .store import Event
+            event = Event(
+                article_id=article.id,
+                event_type='downvote'
+            )
+            db.add(event)
+            db.commit()
+            message = "Article downvoted"
+            
+        elif request.action == "undownvote":
+            # Remove downvote
+            success = True
+            article.flags = article.flags or {}
+            article.flags.pop("downvoted", None)
+            # Add event tracking
+            from .store import Event
+            event = Event(
+                article_id=article.id,
+                event_type='undownvote'
+            )
+            db.add(event)
+            db.commit()
+            message = "Downvote removed"
     
     finally:
         client.client.close()
@@ -240,6 +335,138 @@ async def trigger_refresh():
         scored=result["scored"],
         timestamp=datetime.utcnow()
     )
+
+@app.get("/admin/downvoted")
+async def get_downvoted_articles(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(50, ge=1, le=200, description="Items per page"),
+    db: Session = Depends(get_db)
+):
+    """Get articles that have been downvoted for admin review"""
+    from sqlalchemy import and_
+    from .store import Article as ArticleModel, SpamReport
+    
+    # Query articles with downvoted flag, excluding spam
+    query = db.query(ArticleModel).outerjoin(
+        SpamReport, ArticleModel.id == SpamReport.article_id
+    ).filter(
+        ArticleModel.flags.op('->>')('downvoted') == 'true',
+        SpamReport.id.is_(None)  # Exclude spam-reported articles
+    ).order_by(ArticleModel.created_at.desc())
+    
+    total = query.count()
+    articles = query.offset((page - 1) * page_size).limit(page_size).all()
+    
+    # Convert to response format
+    article_data = []
+    for article in articles:
+        article_data.append({
+            "id": article.id,
+            "freshrss_entry_id": article.freshrss_entry_id,
+            "title": article.title,
+            "url": article.url,
+            "content": article.content,
+            "source": article.source,
+            "published_at": article.published_at,
+            "score_total": article.score_total,
+            "scores": article.scores,
+            "flags": article.flags,
+            "created_at": article.created_at,
+            "extraction_status": article.extraction_status,
+            "full_content": article.full_content
+        })
+    
+    return {
+        "items": article_data,
+        "total": total,
+        "page": page,
+        "page_size": page_size
+    }
+
+@app.get("/trending")
+async def get_trending_articles(
+    hours: int = Query(24, ge=1, le=168, description="Hours to look back for trending"),
+    min_score: int = Query(50, description="Minimum score threshold"),
+    limit: int = Query(20, ge=1, le=100, description="Number of articles to return"),
+    db: Session = Depends(get_db)
+):
+    """Get trending articles based on recent engagement and high scores"""
+    from sqlalchemy import and_, func
+    from .store import Article as ArticleModel, Event, SpamReport
+    from datetime import datetime, timezone, timedelta
+    
+    # Calculate cutoff time
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+    
+    # Get articles with engagement in the last N hours
+    trending_query = db.query(
+        ArticleModel,
+        func.count(Event.id).label('engagement_count'),
+        func.count(func.nullif(Event.event_type, 'impression')).label('active_engagement'),
+        func.coalesce(func.sum(
+            func.case(
+                [(Event.event_type == 'star', 5),
+                 (Event.event_type == 'external_click', 3),
+                 (Event.event_type == 'open', 2),
+                 (Event.event_type == 'downvote', -3)],
+                else_=1
+            )
+        ), 0).label('weighted_engagement')
+    ).outerjoin(
+        Event, 
+        and_(Event.article_id == ArticleModel.id, Event.created_at >= cutoff)
+    ).outerjoin(
+        SpamReport, ArticleModel.id == SpamReport.article_id
+    ).filter(
+        ArticleModel.score_total >= min_score,
+        ArticleModel.published_at >= cutoff,  # Only recent articles
+        SpamReport.id.is_(None)  # Exclude spam-reported articles
+    ).group_by(ArticleModel.id).order_by(
+        func.coalesce(func.sum(
+            func.case(
+                [(Event.event_type == 'star', 5),
+                 (Event.event_type == 'external_click', 3),
+                 (Event.event_type == 'open', 2),
+                 (Event.event_type == 'downvote', -3)],
+                else_=1
+            )
+        ), 0).desc(),
+        ArticleModel.score_total.desc()
+    ).limit(limit)
+    
+    results = trending_query.all()
+    
+    # Format response
+    trending_articles = []
+    for article, engagement_count, active_engagement, weighted_engagement in results:
+        trending_articles.append({
+            "id": article.id,
+            "freshrss_entry_id": article.freshrss_entry_id,
+            "title": article.title,
+            "url": article.url,
+            "content": article.content,
+            "source": article.source,
+            "published_at": article.published_at,
+            "score_total": article.score_total,
+            "scores": article.scores,
+            "flags": article.flags,
+            "topics": article.topics,
+            "has_image": article.has_image,
+            "image_proxy_path": article.image_proxy_path,
+            "image_blurhash": article.image_blurhash,
+            "engagement_count": engagement_count or 0,
+            "active_engagement": active_engagement or 0,
+            "weighted_engagement": float(weighted_engagement or 0),
+            "trend_score": float(weighted_engagement or 0) + (article.score_total * 0.1),
+            "created_at": article.created_at
+        })
+    
+    return {
+        "items": trending_articles,
+        "total": len(trending_articles),
+        "hours_back": hours,
+        "min_score": min_score
+    }
 
 @app.get("/config", response_model=ConfigResponse)
 async def get_config(db: Session = Depends(get_db)):
@@ -263,6 +490,29 @@ async def get_config(db: Session = Depends(get_db)):
 async def get_scheduler_status():
     """Get scheduler status"""
     return scheduler.get_status()
+
+@app.get("/system/metrics")
+async def get_system_metrics():
+    """Get comprehensive system performance metrics"""
+    try:
+        # Database pool stats
+        db_pool_stats = get_db_pool_stats()
+        
+        # Cache stats
+        from .cache_service import cache_service
+        cache_stats = cache_service.get_cache_stats()
+        
+        # Scheduler status
+        scheduler_status = scheduler.get_status()
+        
+        return {
+            "database_pool": db_pool_stats,
+            "redis_cache": cache_stats,
+            "scheduler": scheduler_status,
+            "system_timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        return {"error": str(e), "status": "error"}
 
 @app.get("/img/{h1}/{h2}/{filename}")
 async def serve_image(h1: str, h2: str, filename: str):
@@ -290,6 +540,32 @@ async def serve_image(h1: str, h2: str, filename: str):
     )
 
 # Content extraction endpoints
+@app.get("/articles/by-url")
+async def get_article_by_url(url: str, db: Session = Depends(get_db)):
+    """Find article by URL"""
+    from .store import Article
+    import sys
+    print(f"DEBUG: Searching for URL: {repr(url)}", file=sys.stderr)
+    
+    article = db.query(Article).filter(Article.url == url).first()
+    print(f"DEBUG: Article found: {article is not None}", file=sys.stderr)
+    
+    if not article:
+        # Try to find any article with similar URL
+        similar = db.query(Article).filter(Article.url.contains('genai-and-data-management')).first()
+        print(f"DEBUG: Similar article: {similar is not None}", file=sys.stderr)
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    return {
+        "id": article.id,
+        "freshrss_entry_id": article.freshrss_entry_id,
+        "title": article.title,
+        "url": article.url,
+        "source": article.source,
+        "published_at": article.published_at.isoformat(),
+        "score_total": article.score_total
+    }
+
 @app.get("/articles/{article_id}/content")
 async def get_article_content(article_id: int, db: Session = Depends(get_db)):
     """Get full extracted content for an article"""
@@ -535,3 +811,137 @@ async def recache_images(
         }
     finally:
         await service.close()
+
+
+# WebSocket Endpoints
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    """WebSocket endpoint for real-time updates"""
+    await connection_manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            await connection_manager.handle_message(websocket, data)
+    except WebSocketDisconnect:
+        connection_manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        connection_manager.disconnect(websocket)
+
+
+@app.get("/ws/stats")
+async def websocket_stats():
+    """Get WebSocket connection statistics"""
+    return connection_manager.get_stats()
+
+
+# Notification Endpoints
+@app.post("/api/notifications/send")
+async def send_notification(
+    user_id: str,
+    notification_type: str,
+    title: str,
+    message: str,
+    data: dict = None,
+    priority: str = "normal",
+    channels: list[str] = None
+):
+    """Send notification to user"""
+    try:
+        notif_type = NotificationType(notification_type)
+        notif_priority = NotificationPriority(priority)
+        channel_set = set(channels) if channels else {"websocket"}
+        
+        notification_id = await notification_manager.send_notification(
+            user_id=user_id,
+            notification_type=notif_type,
+            title=title,
+            message=message,
+            data=data or {},
+            priority=notif_priority,
+            channels=channel_set
+        )
+        
+        return {"status": "success", "notification_id": notification_id}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameter: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send notification: {e}")
+
+
+@app.get("/api/notifications/{user_id}")
+async def get_user_notifications(
+    user_id: str,
+    limit: int = Query(50, le=100),
+    unread_only: bool = Query(False)
+):
+    """Get notifications for user"""
+    notifications = notification_manager.get_user_notifications(
+        user_id=user_id,
+        limit=limit,
+        unread_only=unread_only
+    )
+    return {"notifications": notifications}
+
+
+@app.post("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, user_id: str):
+    """Mark notification as read"""
+    success = await notification_manager.mark_read(notification_id, user_id)
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=404, detail="Notification not found")
+
+
+@app.post("/api/notifications/{user_id}/preferences")
+async def set_notification_preferences(user_id: str, preferences: dict):
+    """Set user notification preferences"""
+    notification_manager.set_user_preferences(user_id, preferences)
+    return {"status": "success"}
+
+
+@app.get("/api/notifications/stats")
+async def get_notification_stats():
+    """Get notification system statistics"""
+    return notification_manager.get_stats()
+
+
+# Test notification endpoints for development
+@app.post("/api/notifications/test/breaking-news")
+async def test_breaking_news(user_id: str = "test-user"):
+    """Send test breaking news notification"""
+    from .notifications import send_breaking_news_alert
+    await send_breaking_news_alert(user_id, {
+        "title": "Test Breaking News Alert",
+        "url": "https://example.com/test-article",
+        "score": 9.2,
+        "source": "Test Source"
+    })
+    return {"status": "Test breaking news sent"}
+
+
+@app.post("/api/notifications/test/high-score")
+async def test_high_score(user_id: str = "test-user"):
+    """Send test high score notification"""
+    from .notifications import send_high_score_alert
+    await send_high_score_alert(user_id, {
+        "title": "Test High Score Article",
+        "url": "https://example.com/high-score-article", 
+        "score": 8.7,
+        "source": "Test Source"
+    })
+    return {"status": "Test high score notification sent"}
+
+
+@app.post("/api/notifications/test/trend")
+async def test_trend_alert(user_id: str = "test-user"):
+    """Send test trend notification"""
+    from .notifications import send_trend_alert
+    await send_trend_alert(user_id, {
+        "trend_name": "AI Breakthrough",
+        "article_count": 15,
+        "confidence": 0.87
+    })
+    return {"status": "Test trend alert sent"}

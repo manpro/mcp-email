@@ -10,7 +10,7 @@ export interface FilterParams {
   q?: string;
   has_image?: boolean;
   view?: 'list' | 'cards';
-  tab?: 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight';
+  tab?: 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'experiments' | 'spam' | 'email' | 'analytics';
 }
 
 export function useUrlSync() {
@@ -40,7 +40,7 @@ export function useUrlSync() {
     if (view === 'list' || view === 'cards') params.view = view;
     
     const tab = searchParams.get('tab');
-    if (tab === 'browse' || tab === 'recommended' || tab === 'search' || tab === 'ask' || tab === 'spotlight') params.tab = tab;
+    if (tab === 'browse' || tab === 'recommended' || tab === 'search' || tab === 'ask' || tab === 'spotlight' || tab === 'experiments' || tab === 'spam' || tab === 'email' || tab === 'analytics') params.tab = tab;
     
     return params;
   }, [searchParams]);

@@ -11,13 +11,17 @@ import { Badge } from '@/components/ui/badge';
 import { Toggle } from '@/components/ui/toggle';
 import { useUrlSync } from '@/hooks/use-url-sync';
 import { useToast } from '@/hooks/use-toast';
-import { RefreshCw, Search, Link, X, Image, Sparkles, MessageSquare, Compass } from 'lucide-react';
+import { RefreshCw, Search, Link, X, Image, Sparkles, MessageSquare, Compass, Settings, Mail, BarChart3, Beaker, AlertTriangle, ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ArticleReader from './ArticleReader';
 import { SearchTab } from './SearchTab';
 import { AskTab } from './AskTab';
 import { SpotlightTab } from './SpotlightTab';
 import { GlobalSearch } from './GlobalSearch';
+import { SpamTab } from './SpamTab';
+import FediverseTab from './FediverseTab';
+import SourceHealthTab from './SourceHealthTab';
+import TrendingTab from './TrendingTab';
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -30,13 +34,14 @@ export default function Dashboard() {
   const [searchInput, setSearchInput] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const pageSize = 200;
   
   const { filters, updateFilters, clearFilters, copyLink } = useUrlSync();
   const { toast } = useToast();
 
   // Tab management
-  type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight';
+  type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'experiments' | 'spam' | 'email' | 'analytics' | 'fediverse' | 'health' | 'trending';
   const currentTab: TabType = (filters.tab as TabType) || 'browse';
 
   // Load config on mount
@@ -288,6 +293,39 @@ export default function Dashboard() {
     localStorage.setItem('rss-intel-view', view);
   };
 
+  const handleReportSpam = async (articleId: number) => {
+    try {
+      const response = await fetch(`/api/articles/${articleId}/report-spam`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to report spam');
+      }
+
+      const result = await response.json();
+      
+      toast({
+        title: "Rapporterad som spam",
+        description: "Artikeln har markerats som spam och tas bort från flödet",
+        type: "success",
+      });
+
+      // Remove article from current view
+      setArticles(prev => prev.filter(article => article.id !== articleId));
+      setTotal(prev => prev - 1);
+
+    } catch (error) {
+      console.error('Error reporting spam:', error);
+      toast({
+        title: "Fel",
+        description: "Kunde inte rapportera spam",
+        type: "error",
+      });
+    }
+  };
+
   // Get view mode with proper SSR handling
   const [currentView, setCurrentView] = useState<ViewMode>('list');
   
@@ -320,8 +358,35 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="border-b bg-white p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="border-b bg-white px-4 py-2 sm:p-4">
+        {/* Mobile header with collapse */}
+        <div className="flex md:hidden items-center justify-between mb-2">
+          <h1 className={cn("font-bold transition-all", headerCollapsed ? "text-lg" : "text-xl")}>
+            RSS Intelligence
+          </h1>
+          <div className="flex items-center gap-2">
+            {!headerCollapsed && (
+              <Badge variant="outline" className="text-xs">
+                {total}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setHeaderCollapsed(!headerCollapsed)}
+              className="p-1 h-6 w-6"
+            >
+              {headerCollapsed ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronUp className="h-3 w-3" />
+              )}
+            </Button>
+          </div>
+        </div>
+        
+        {/* Desktop header - always visible */}
+        <div className="hidden md:flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold">RSS Intelligence Dashboard</h1>
           <div className="flex items-center gap-4">
             <GlobalSearch />
@@ -345,53 +410,144 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Tab navigation */}
-        <div className="flex space-x-1 mb-4">
+        {/* Mobile collapsible content */}
+        {!headerCollapsed && (
+          <div className="md:hidden mb-3">
+            <div className="flex items-center justify-between mb-2">
+              <GlobalSearch />
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+                </Button>
+                <Button
+                  onClick={copyLink}
+                  variant="ghost"
+                  size="sm"
+                >
+                  <Link className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab navigation - always visible but responsive */}
+        <div className={cn(
+          "mb-4 transition-all",
+          headerCollapsed ? "hidden md:flex md:space-x-1" : "flex space-x-1 overflow-x-auto"
+        )}>
           <Button
             variant={currentTab === 'browse' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'browse' })}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
           >
             <Compass className="h-4 w-4" />
-            Browse
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Browse</span>
           </Button>
           <Button
             variant={currentTab === 'recommended' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'recommended' })}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
           >
             <Sparkles className="h-4 w-4" />
-            Recommended
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Recommended</span>
           </Button>
           <Button
             variant={currentTab === 'search' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'search' })}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
           >
             <Search className="h-4 w-4" />
-            Search
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Search</span>
           </Button>
           <Button
             variant={currentTab === 'ask' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'ask' })}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
           >
             <MessageSquare className="h-4 w-4" />
-            Ask AI
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Ask AI</span>
           </Button>
           <Button
             variant={currentTab === 'spotlight' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'spotlight' })}
-            className="flex items-center gap-2"
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
           >
             <Sparkles className="h-4 w-4 text-amber-500" />
-            Spotlight
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Spotlight</span>
+          </Button>
+          <Button
+            variant={currentTab === 'experiments' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'experiments' })}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
+          >
+            <Beaker className="h-4 w-4 text-purple-500" />
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Experiments</span>
+          </Button>
+          <Button
+            variant={currentTab === 'fediverse' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'fediverse' })}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
+          >
+            <MessageSquare className="h-4 w-4 text-blue-500" />
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Fediverse</span>
+          </Button>
+          <Button
+            variant={currentTab === 'health' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'health' })}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
+          >
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Health</span>
+          </Button>
+          <Button
+            variant={currentTab === 'trending' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'trending' })}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
+          >
+            <BarChart3 className="h-4 w-4 text-green-500" />
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Trending</span>
           </Button>
         </div>
 
-        {/* Filters - only show for Browse tab */}
+        {/* Filters - only show for Browse tab and when not collapsed on mobile */}
         {currentTab === 'browse' && (
-        <div className="flex flex-col gap-4">
+        <div className={cn(
+          "flex flex-col gap-4",
+          headerCollapsed ? "hidden md:flex" : "flex"
+        )}>
           <div className="flex items-center gap-4">
             {/* Search */}
             <form onSubmit={handleSearch} className="flex items-center gap-2 flex-1 max-w-md">
@@ -545,6 +701,8 @@ export default function Dashboard() {
                 viewMode={currentView}
                 onAction={handleAction}
                 onExtractContent={handleExtractContent}
+                onArticleClick={setSelectedArticle}
+                onReportSpam={handleReportSpam}
                 loading={actionLoading}
                 imageProxyBase={config?.imageProxyBase || '/img'}
               />
@@ -613,7 +771,47 @@ export default function Dashboard() {
           </div>
         ) : currentTab === 'spotlight' ? (
           <div className="p-4 overflow-y-auto h-full">
-            <SpotlightTab />
+            <SpotlightTab onArticleClick={setSelectedArticle} />
+          </div>
+        ) : currentTab === 'email' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <div className="text-center py-8">
+              <Mail className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Email Integration</h2>
+              <p className="text-muted-foreground">Email newsletter management coming soon</p>
+            </div>
+          </div>
+        ) : currentTab === 'analytics' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <div className="text-center py-8">
+              <BarChart3 className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Analytics Dashboard</h2>
+              <p className="text-muted-foreground">Reading analytics and insights coming soon</p>
+            </div>
+          </div>
+        ) : currentTab === 'experiments' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <div className="text-center py-8">
+              <Beaker className="h-12 w-12 text-purple-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Experimental Features</h2>
+              <p className="text-muted-foreground">Try new AI-powered content features</p>
+            </div>
+          </div>
+        ) : currentTab === 'spam' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <SpamTab onArticleClick={setSelectedArticle} />
+          </div>
+        ) : currentTab === 'fediverse' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <FediverseTab />
+          </div>
+        ) : currentTab === 'health' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <SourceHealthTab />
+          </div>
+        ) : currentTab === 'trending' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <TrendingTab />
           </div>
         ) : null}
       </div>
@@ -624,6 +822,22 @@ export default function Dashboard() {
           article={selectedArticle}
           onClose={() => setSelectedArticle(null)}
         />
+      )}
+      
+      {/* Admin link - only show for browse tab */}
+      {currentTab === 'browse' && (
+        <div className="fixed bottom-4 right-4 z-30">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => updateFilters({ tab: 'admin' })}
+            className="bg-gray-50 hover:bg-gray-100 text-xs text-muted-foreground border border-gray-200 shadow-sm"
+            title="Admin panel for content quality review"
+          >
+            <Settings className="h-3 w-3 mr-1" />
+            Admin
+          </Button>
+        </div>
       )}
     </div>
   );

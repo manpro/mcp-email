@@ -9,9 +9,10 @@ import { clsx } from 'clsx';
 interface TableProps {
   articles: Article[];
   onUpdate: () => void;
+  onArticleClick?: (article: Article) => void;
 }
 
-export default function Table({ articles, onUpdate }: TableProps) {
+export default function Table({ articles, onUpdate, onArticleClick }: TableProps) {
   const [loading, setLoading] = useState<string | null>(null);
 
   const handleAction = async (entryId: string, action: string, label?: string) => {
@@ -71,15 +72,13 @@ export default function Table({ articles, onUpdate }: TableProps) {
               </td>
               <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
                 <div>
-                  <a 
-                    href={article.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-primary-600 hover:underline font-medium"
+                  <button 
+                    onClick={() => onArticleClick?.(article)}
+                    className="hover:text-primary-600 hover:underline font-medium text-left"
                     title={article.title}
                   >
                     {truncateTitle(article.title)}
-                  </a>
+                  </button>
                   {article.content && (
                     <p 
                       className="mt-2 text-sm text-gray-700 leading-relaxed overflow-hidden"
@@ -112,6 +111,11 @@ export default function Table({ articles, onUpdate }: TableProps) {
                   {article.flags?.starred && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                       ⭐ Starred
+                    </span>
+                  )}
+                  {article.flags?.downvoted && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                      👎 Poor Quality
                     </span>
                   )}
                   {article.topics?.slice(0, 2).map(topic => (
@@ -181,6 +185,34 @@ export default function Table({ articles, onUpdate }: TableProps) {
                       ✓
                     </button>
                   )}
+                  
+                  <button
+                    onClick={() => handleAction(
+                      article.freshrss_entry_id,
+                      article.flags?.downvoted ? 'undownvote' : 'downvote'
+                    )}
+                    disabled={loading === article.freshrss_entry_id}
+                    className={clsx(
+                      'px-2 py-1 rounded text-xs font-medium transition-colors',
+                      article.flags?.downvoted
+                        ? 'bg-red-100 text-red-800 hover:bg-red-200'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+                      loading === article.freshrss_entry_id && 'opacity-50 cursor-not-allowed'
+                    )}
+                    title={article.flags?.downvoted ? "Remove downvote" : "Mark as poor quality"}
+                  >
+                    👎
+                  </button>
+                  
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200"
+                    title="Open original article"
+                  >
+                    🔗
+                  </a>
                 </div>
               </td>
             </tr>

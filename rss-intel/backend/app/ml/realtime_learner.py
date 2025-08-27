@@ -47,7 +47,7 @@ class RealtimeLearner:
                 FROM events e
                 JOIN articles a ON e.article_id = a.id
                 WHERE e.created_at >= :cutoff
-                AND e.type IN ('star', 'external_click', 'dismiss', 'open')
+                AND e.type IN ('star', 'external_click', 'dismiss', 'open', 'downvote', 'undownvote')
                 ORDER BY e.created_at DESC
                 LIMIT 1000
             """), {"cutoff": cutoff})
@@ -86,8 +86,10 @@ class RealtimeLearner:
         """Convert event type and duration to binary label (0=negative, 1=positive)"""
         if event_type in ['star', 'external_click']:
             return 1
-        elif event_type == 'dismiss':
-            return 0
+        elif event_type in ['dismiss', 'downvote']:
+            return 0  # Strong negative signals
+        elif event_type == 'undownvote':
+            return 1  # Removing a downvote is positive
         elif event_type == 'open':
             # Consider opens with duration > 10 seconds as positive
             return 1 if (duration_ms or 0) > 10000 else 0

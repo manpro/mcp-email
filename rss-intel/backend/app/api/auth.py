@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from ..deps import get_db
-from ..auth import UserManager, get_current_user, require_auth
+from ..auth_simple import SimpleUserManager, get_current_user_simple, require_auth_simple
 
 logger = logging.getLogger(__name__)
 
@@ -31,24 +31,41 @@ class UserPreferences(BaseModel):
 async def login(
     request: LoginRequest,
     response: Response,
+    http_request: Request,
     db: Session = Depends(get_db)
 ):
-    """Login user and create session"""
+    """Secure login with JWT tokens and rate limiting"""
     try:
-        user_manager = UserManager(db)
-        user = user_manager.authenticate_user(request.username, request.password)
+        # Get client info for security logging
+        client_ip = http_request.client.host if http_request.client else "unknown"
+        user_agent = http_request.headers.get("user-agent", "")
+        
+        user_manager = SimpleUserManager(db)
+        user = user_manager.authenticate_user(
+            request.username, 
+            request.password, 
+            client_ip=client_ip, 
+            user_agent=user_agent
+        )
         
         if not user:
             raise HTTPException(status_code=401, detail="Invalid username or password")
         
-        # Set session cookie
+        # Check if request is HTTPS (forwarded by nginx)
+        is_https = (
+            http_request.headers.get("x-forwarded-proto") == "https" or
+            http_request.url.scheme == "https"
+        )
+        
+        # Set session token as HTTP-only cookie
         response.set_cookie(
             key="session_token",
             value=user["session_token"],
             max_age=7 * 24 * 60 * 60,  # 7 days
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax"
+            secure=is_https,  # Secure only over HTTPS
+            samesite="lax",  # Allow cross-port access on same domain
+            domain=None  # Let browser determine domain (works for localhost:port)
         )
         
         # Remove sensitive data from response
@@ -58,7 +75,7 @@ async def login(
             "preferences": user["preferences"]
         }
         
-        logger.info(f"User {request.username} logged in successfully")
+        logger.info(f"User {request.username} logged in successfully from {client_ip}")
         
         return LoginResponse(
             status="success",
@@ -80,7 +97,7 @@ async def logout(response: Response):
 
 @router.get("/me")
 async def get_current_user_info(
-    current_user: Dict[str, Any] = Depends(require_auth)
+    current_user: Dict[str, Any] = Depends(require_auth_simple)
 ):
     """Get current user information"""
     return {
@@ -92,7 +109,7 @@ async def get_current_user_info(
 @router.get("/users")
 async def list_users(
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(require_auth)
+    current_user: Dict[str, Any] = Depends(require_auth_simple)
 ):
     """List available users (for development)"""
     try:
@@ -128,11 +145,11 @@ async def list_users(
 async def update_preferences(
     preferences: UserPreferences,
     db: Session = Depends(get_db),
-    current_user: Dict[str, Any] = Depends(require_auth)
+    current_user: Dict[str, Any] = Depends(require_auth_simple)
 ):
     """Update user preferences"""
     try:
-        user_manager = UserManager(db)
+        user_manager = SimpleUserManager(db)
         
         # Update preferences
         user_manager.update_user_preferences(
@@ -159,15 +176,15 @@ async def auth_status(
 ):
     """Get authentication status without requiring auth"""
     try:
-        current_user = get_current_user(request, authorization, session_token, user_id)
+        current_user = get_current_user_simple(request, authorization, session_token, user_id)
         
         return {
-            "authenticated": current_user != "owner",  # 'owner' is default fallback
+            "authenticated": current_user is not None,
             "user_id": current_user,
             "auth_methods": [
                 "Authorization header (Bearer token)",
-                "Session cookie",
-                "X-User-ID header"
+                "HTTP-only cookie (session_token)",
+                "X-User-ID header (development only)"
             ]
         }
         

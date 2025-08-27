@@ -220,7 +220,7 @@ class IngestScheduler:
                 existing = store.get_article_by_url_hash(item.url_hash)
                 
                 # Calculate score
-                score_total, scores, topics, entities = scorer.calculate_score(
+                score_total, scores, topics, entities, event_flags = scorer.calculate_score(
                     title=item.title,
                     content=item.content,
                     source=item.source,
@@ -238,7 +238,7 @@ class IngestScheduler:
                     'scores': scores,
                     'topics': topics,
                     'entities': {'matched': entities},
-                    'flags': {},
+                    'flags': event_flags,
                     'lang': item.lang,
                     'content': item.content,  # Store full content
                     'image_url': item.image_url,

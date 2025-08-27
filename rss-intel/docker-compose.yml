@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: rss-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   postgres:
     image: postgres:16-alpine
     container_name: rss-postgres
@@ -118,8 +132,6 @@ services:
       VITE_API_URL: http://localhost:8000
       BACKEND_URL: http://backend:8000
       NODE_ENV: development
-    ports:
-      - "3001:3000"
     networks:
       - internal
     depends_on:
@@ -128,6 +140,42 @@ services:
       - ./web:/app
       - /app/node_modules
     command: npm run dev
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: rss-nginx
+    ports:
+      - "3001:80"
+      - "3002:443"
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    environment:
+      - SSL_DOMAIN=${SSL_DOMAIN:-localhost}
+    networks:
+      - internal
+    depends_on:
+      - web
+      - backend
+
+  certbot:
+    build:
+      context: ./certbot
+    container_name: rss-certbot
+    volumes:
+      - certbot_conf:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    environment:
+      - SSL_DOMAIN=${SSL_DOMAIN:-localhost}
+      - SSL_EMAIL=${SSL_EMAIL:-admin@example.com}
+      - SSL_STAGING=${SSL_STAGING:-1}
+    networks:
+      - internal
+    depends_on:
+      - nginx
+    profiles:
+      - ssl
 
   weaviate:
     image: cr.weaviate.io/semitechnologies/weaviate:1.26.3
@@ -174,4 +222,8 @@ volumes:
       type: none
       o: bind
       device: /mnt/data/rss-intel/images
+  redis_data:
+    driver: local
   weaviate_data:
+  certbot_conf:
+  certbot_www:

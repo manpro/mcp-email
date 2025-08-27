@@ -10,6 +10,8 @@ class ActionType(str, Enum):
     ARCHIVE = "archive"
     LABEL_ADD = "label_add"
     LABEL_REMOVE = "label_remove"
+    DOWNVOTE = "downvote"
+    UNDOWNVOTE = "undownvote"
 
 class DecideRequest(BaseModel):
     action: ActionType

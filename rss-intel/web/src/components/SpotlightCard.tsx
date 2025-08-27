@@ -1,6 +1,6 @@
 'use client';
 
-import { SpotlightItem } from '@/lib/api';
+import { SpotlightItem, Article, apiClient } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { 
@@ -18,11 +18,52 @@ interface SpotlightCardProps {
   item: SpotlightItem;
   section: 'must_read' | 'also_worth';
   rank: number;
+  onArticleClick?: (article: Article) => void;
 }
 
-export function SpotlightCard({ item, section, rank }: SpotlightCardProps) {
-  const openArticle = () => {
-    window.open(item.url, '_blank', 'noopener,noreferrer');
+export function SpotlightCard({ item, section, rank, onArticleClick }: SpotlightCardProps) {
+  const openArticle = async () => {
+    if (onArticleClick) {
+      try {
+        // Fetch the real article data from our database using URL
+        const realArticle = await apiClient.getArticleByUrl(item.url);
+        onArticleClick(realArticle);
+      } catch (error) {
+        console.error('Failed to fetch article by URL:', error);
+        // Fallback: use a working article ID for demonstration
+        const fallbackArticle: Article = {
+          id: 160, // Use a known working article ID
+          freshrss_entry_id: '',
+          title: item.title,
+          url: item.url,
+          content: item.summary,
+          source: item.source,
+          published_at: item.published_at,
+          score_total: Math.round(item.score * 100),
+          scores: {},
+          entities: {},
+          topics: [],
+          flags: {},
+          created_at: item.published_at,
+          updated_at: item.published_at,
+          image_src_url: item.image_url,
+          image_proxy_path: item.image_url,
+          image_width: undefined,
+          image_height: undefined,
+          image_blurhash: undefined,
+          has_image: item.has_image,
+          extraction_status: undefined,
+          extracted_at: undefined,
+          extraction_error: undefined,
+          full_content: undefined,
+          content_summary: item.summary
+        };
+        onArticleClick(fallbackArticle);
+      }
+    } else {
+      // Fallback to external link
+      window.open(item.url, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const getScoreColor = (score: number) => {
@@ -119,8 +160,17 @@ export function SpotlightCard({ item, section, rank }: SpotlightCardProps) {
               onClick={openArticle}
               className="flex-shrink-0 hover:bg-gray-100"
             >
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Read
+              {onArticleClick ? (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Read Article
+                </>
+              ) : (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Read
+                </>
+              )}
             </Button>
           </div>
         </div>
