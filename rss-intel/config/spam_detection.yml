@@ -1,0 +1,77 @@
+# RSS Intelligence - Spam Detection Configuration
+# This file controls all spam detection parameters and thresholds
+
+# Detection thresholds - adjust these to fine-tune spam detection sensitivity
+thresholds:
+  spam_probability: 0.7        # Above this = marked as spam (0.0-1.0)
+  review_probability: 0.5      # Above this = needs manual review (0.0-1.0)  
+  min_content_score: 0.3       # Below this = low quality content (0.0-1.0)
+  min_title_coherence: 0.3     # Below this = title doesn't match content (0.0-1.0)
+  max_promotional_ratio: 0.3   # Above this = too much promotional language (0.0-1.0)
+  min_word_count: 50           # Below this = thin content (minimum words)
+  min_sentence_count: 3        # Below this = incomplete content (minimum sentences)
+
+# Weights for different spam signal types (0.0-1.0)
+signal_weights:
+  promotional_content: 0.8     # Commercial/advertising content
+  future_events_spam: 0.7      # Webinars, conferences, etc.
+  thin_content: 0.6           # Articles with little substance
+  title_mismatch: 0.9         # Title doesn't match content
+  clickbait: 0.5              # Sensational headlines
+
+# Scoring penalties applied to article scores
+quality_penalties:
+  max_spam_penalty: 500       # Maximum penalty for spam content
+  promotional_penalty: 40     # Penalty per promotional signal
+  event_spam_penalty: 30      # Penalty per event spam signal  
+  thin_content_penalty: 50    # Penalty per thin content signal
+  title_mismatch_penalty: 60  # Penalty per title mismatch signal
+  clickbait_penalty: 25       # Penalty per clickbait signal
+
+# Detection patterns - regular expressions for identifying spam content
+patterns:
+  # Promotional/advertising patterns
+  promotional_patterns:
+    - '\b(?:buy now|order now|purchase|sale|discount|offer|deal|limited time|act now)\b'
+    - '\b(?:free|save \$|[0-9]+% off|coupon|promo code|special offer)\b'  
+    - '\b(?:click here|visit our|learn more|sign up|register now|join now)\b'
+    - '\b(?:sponsored|advertisement|paid content|partner content)\b'
+    - '\b(?:pricing|plans starting|subscription|upgrade now|premium features)\b'
+    - '\b(?:download|request demo|get started|try free|contact us)\b'
+
+  # Future events and webinar spam patterns
+  future_event_patterns:
+    - '\b(?:upcoming|coming soon|next week|next month|next year|in [0-9]+ days)\b'
+    - '\b(?:will be|is going to be|scheduled for|planned for|set to)\b'
+    - '\b(?:save the date|mark your calendar|don''t miss|early bird|registration open)\b'
+    - '\b(?:webinar|conference|summit|event|workshop|seminar|masterclass)\b.*(?:register|sign up|tickets|book now)'
+    - '\b(?:keynote|speaker|agenda|program|sessions|venue|location)\b'
+
+  # Thin/low-quality content patterns  
+  thin_content_patterns:
+    - '\b(?:lorem ipsum|placeholder|sample text|test content)\b'
+    - '^\s*\[.*?\]\s*$'  # Just placeholder brackets
+    - '\b(?:more information|read more|click here|see more|learn more)\b.*$'
+    - '^(.+?)\1{3,}'     # Repeated patterns
+
+  # Clickbait patterns
+  clickbait_patterns:
+    - '\b(?:you won''t believe|shocking|amazing|incredible|unbelievable)\b'
+    - '\b(?:[0-9]+ reasons|[0-9]+ ways|[0-9]+ tips|[0-9]+ secrets)\b'
+    - '\b(?:hate|love|secret|trick|hack|revealed|exposed)\b'  
+    - '[\!\?]{2,}'       # Multiple exclamation/question marks
+    - '\b(?:this will blow your mind|doctors hate|one simple trick)\b'
+
+# System settings
+batch_size: 50                # Articles to process in one batch
+cache_ttl: 3600              # Cache spam results for 1 hour (seconds)
+enabled: true               # Global enable/disable spam detection
+auto_penalize: true         # Automatically apply score penalties
+
+# Scheduler settings
+cleanup_interval_hours: 6   # Run spam cleanup every 6 hours
+stats_update_hour: 1        # Update daily stats at 1 AM
+
+# Monitoring and alerting thresholds
+alert_spam_rate: 0.3        # Alert if spam rate exceeds 30%
+alert_low_quality_rate: 0.5 # Alert if low quality rate exceeds 50%
