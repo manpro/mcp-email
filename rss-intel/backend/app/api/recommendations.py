@@ -14,8 +14,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
 from ..deps import get_db
-from ..store import Article, Story, Prediction
-from ..events import Event
+from ..store import Article, Story, Prediction, Event
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -68,7 +67,7 @@ async def get_recommendations(
         predictions_query = db.query(
             Prediction.article_id,
             Prediction.p_read,
-            Prediction.model_version,
+            Prediction.model_id,
             Article
         ).join(
             Article, Article.id == Prediction.article_id
@@ -76,7 +75,7 @@ async def get_recommendations(
             and_(
                 Article.published_at >= since,
                 Prediction.p_read >= min_confidence,
-                Article.spam_detected != True
+                # Article.spam_detected != True  # disabled - spam detection removed
             )
         ).order_by(
             desc(Prediction.p_read),
@@ -92,7 +91,7 @@ async def get_recommendations(
         ).filter(
             and_(
                 Article.published_at >= since,
-                Article.spam_detected != True
+                # Article.spam_detected != True  # disabled - spam detection removed
             )
         ).group_by(Article.id).having(
             func.count(Event.id) > 0

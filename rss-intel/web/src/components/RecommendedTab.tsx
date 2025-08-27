@@ -47,10 +47,10 @@ export function RecommendedTab({
     try {
       setError(null);
       
-      // Try ML recommendations first
+      // Try ML recommendations first via direct backend port (bypass nginx)
       let data: RecommendationResponse | null = null;
       try {
-        const mlResponse = await fetch('/api/proxy/api/ml/recommend?limit=200');
+        const mlResponse = await fetch('http://localhost:8000/api/ml/recommend?limit=200');
         if (mlResponse.ok) {
           data = await mlResponse.json();
           if (data && data.articles && data.articles.length > 0) {
@@ -66,7 +66,7 @@ export function RecommendedTab({
       }
       
       // Fallback to rule-based recommendations using items endpoint
-      const itemsResponse = await fetch('/api/proxy/items?limit=200');
+      const itemsResponse = await fetch('/api/items?limit=200');
       if (!itemsResponse.ok) {
         throw new Error(`Failed to fetch recommendations: ${itemsResponse.statusText}`);
       }

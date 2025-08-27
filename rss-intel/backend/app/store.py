@@ -145,14 +145,12 @@ class Prediction(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     article_id = Column(Integer, ForeignKey('articles.id'), nullable=False, index=True)
-    model_id = Column(Integer, ForeignKey('ml_models.id'), nullable=False, index=True)
-    score = Column(Float, nullable=False)  # Predicted read probability
-    features = Column(JSONB, nullable=True)
+    model_id = Column(Integer, nullable=False, index=True)  # No FK constraint to ml_models
+    p_read = Column(Float, nullable=False)  # Predicted read probability
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships
     article = relationship("Article")
-    model = relationship("MLModel")
 
 
 class SpotlightIssue(Base):

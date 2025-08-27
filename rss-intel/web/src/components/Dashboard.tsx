@@ -21,7 +21,7 @@ import { GlobalSearch } from './GlobalSearch';
 import { SpamTab } from './SpamTab';
 import FediverseTab from './FediverseTab';
 import SourceHealthTab from './SourceHealthTab';
-import TrendingTab from './TrendingTab';
+import { TrendingTab } from './TrendingTab';
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<Article[]>([]);
