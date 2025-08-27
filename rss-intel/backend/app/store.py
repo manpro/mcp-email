@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ARRAY, Index, func, Boolean, BigInteger, Float, ForeignKey, Date
+from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, ARRAY, Index, func, Boolean, BigInteger, Float, ForeignKey, Date, and_, or_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import hashlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -259,12 +262,13 @@ class ArticleStore:
         page_size: int = 50,
         include_spam: bool = False
     ) -> tuple[List[Article], int]:
+        logger.warning(f"DEBUG: get_articles called with include_spam={include_spam}")
         q = self.db.query(Article)
         
-        # Spam filtering disabled - SpamReport model removed
-        # if not include_spam:
-        #     q = q.outerjoin(SpamReport, Article.id == SpamReport.article_id)\
-        #          .filter(SpamReport.id.is_(None))
+        # Spam filtering based on score_total and flags
+        if not include_spam:
+            logger.warning(f"DEBUG: Applying spam filter - excluding articles with score < 0")
+            q = q.filter(Article.score_total >= 0)  # Filter out articles with negative spam scores
         
         if min_score is not None:
             q = q.filter(Article.score_total >= min_score)

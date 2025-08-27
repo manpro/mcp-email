@@ -188,8 +188,12 @@ async def get_items(
 ):
     """Get filtered list of articles"""
     store = ArticleStore(db)
+    
+    # Always filter out spam articles (score < 0) unless min_score is explicitly lower
+    effective_min_score = max(0, min_score) if min_score is not None else 0
+    
     articles, total = store.get_articles(
-        min_score=min_score,
+        min_score=effective_min_score,
         label=label,
         source=source,
         query=q,
