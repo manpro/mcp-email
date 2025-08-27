@@ -72,7 +72,7 @@ async def get_health_overview(
 @router.get("/source-health/problematic")
 async def get_problematic_sources(
     days: int = Query(7, ge=1, le=30),
-    min_severity: str = Query("medium", regex="^(low|medium|high|critical)$"),
+    min_severity: str = Query("medium", pattern="^(low|medium|high|critical)$"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db)
 ):
@@ -235,7 +235,7 @@ async def trigger_health_analysis(
 @router.get("/source-health/alerts")
 async def get_health_alerts(
     active_only: bool = Query(True),
-    severity: Optional[str] = Query(None, regex="^(low|medium|high|critical)$"),
+    severity: Optional[str] = Query(None, pattern="^(low|medium|high|critical)$"),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db)
 ):

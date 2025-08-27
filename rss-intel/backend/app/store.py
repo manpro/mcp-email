@@ -216,20 +216,6 @@ class ImageDiagnostic(Base):
     article = relationship("Article")
 
 
-class SpamReport(Base):
-    __tablename__ = "spam_reports"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    article_id = Column(Integer, ForeignKey('articles.id', ondelete='CASCADE'), nullable=False, unique=True)
-    reported_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    source = Column(String(50), nullable=False)  # 'user_feedback', 'ml_detection', etc.
-    reason = Column(String(100), nullable=False)  # 'promotional_content', 'spam', etc.
-    report_count = Column(Integer, default=1, nullable=False)
-    report_metadata = Column(JSONB, nullable=True)
-    
-    # Relationship
-    article = relationship("Article")
-
 
 class ArticleStore:
     def __init__(self, db: Session):

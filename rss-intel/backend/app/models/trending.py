@@ -10,7 +10,7 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
-from ..database import Base
+from ..store import Base
 
 class TrendingTopic(Base):
     """Trending topic detected by analysis"""

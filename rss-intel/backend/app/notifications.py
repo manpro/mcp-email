@@ -12,9 +12,12 @@ from typing import Dict, Any, List, Optional, Set
 from dataclasses import dataclass, asdict
 from enum import Enum
 try:
-    from email.mime.text import MimeText
-    from email.mime.multipart import MimeMultipart
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
     import smtplib
+    # Alias for compatibility - the import name in the standard library is MIMEText, not MimeText
+    MimeText = MIMEText
+    MimeMultipart = MIMEMultipart
 except ImportError:
     # Fallback if email modules not available in container
     MimeText = None

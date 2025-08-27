@@ -8,7 +8,7 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 
-from ..database import Base
+from ..store import Base
 
 class SavedSearch(Base):
     """Saved search configurations for users"""

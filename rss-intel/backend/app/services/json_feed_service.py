@@ -17,7 +17,7 @@ import re
 import hashlib
 from sqlalchemy.orm import Session
 
-from ..store import Article, Feed
+from ..store import Article
 from ..intelligence.content_extractor import extract_content
 
 logger = logging.getLogger(__name__)

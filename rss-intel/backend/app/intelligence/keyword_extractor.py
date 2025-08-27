@@ -21,7 +21,8 @@ import networkx as nx
 from textstat import flesch_reading_ease, gunning_fog
 
 from ..config import settings
-from ..store import Article, SessionLocal
+from ..store import Article
+from ..deps import SessionLocal
 
 logger = logging.getLogger(__name__)
 

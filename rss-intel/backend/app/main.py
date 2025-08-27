@@ -58,10 +58,10 @@ async def lifespan(app: FastAPI):
     # Start event broadcaster in background
     asyncio.create_task(event_broadcaster.start())
     
-    # Start notification system
-    print("Starting notification system...")
-    asyncio.create_task(start_notification_event_consumer())
-    asyncio.create_task(periodic_notification_cleanup())
+    # Start notification system (temporarily disabled)
+    # print("Starting notification system...")
+    # asyncio.create_task(start_notification_event_consumer())
+    # asyncio.create_task(periodic_notification_cleanup())
     
     yield
     

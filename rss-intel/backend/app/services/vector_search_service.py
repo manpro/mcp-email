@@ -18,7 +18,8 @@ import openai
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
-from ..store import Article, SearchQuery, UserProfile
+from ..store import Article
+from ..intelligence.semantic_search import SearchQuery
 from ..config import settings
 
 logger = logging.getLogger(__name__)

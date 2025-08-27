@@ -52,11 +52,11 @@ async def search_articles(
     db: Session = Depends(get_db),
     q: str = Query(..., min_length=1, max_length=200, description="Search query"),
     k: int = Query(default=30, ge=1, le=100, description="Number of results"),
-    lang: Optional[str] = Query(default=None, regex="^(en|sv|de|fr)$", description="Language filter"),
+    lang: Optional[str] = Query(default=None, pattern="^(en|sv|de|fr)$", description="Language filter"),
     freshness_days: Optional[int] = Query(default=30, ge=1, le=365, description="Articles from last N days"),
     hybrid: bool = Query(default=True, description="Use hybrid vector+BM25 search"),
     alpha: float = Query(default=0.7, ge=0.0, le=1.0, description="Hybrid balance (0=BM25, 1=vector)"),
-    content_type: Optional[str] = Query(default='article', regex="^(article|event|all)$", description="Content type filter"),
+    content_type: Optional[str] = Query(default='article', pattern="^(article|event|all)$", description="Content type filter"),
     personalized: bool = Query(default=True, description="Apply ML personalization")
 ) -> SearchResponse:
     """

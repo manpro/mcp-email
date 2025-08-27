@@ -22,8 +22,9 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 
 from ..config import settings
-from ..store import Article, SessionLocal
-from ..ml.embedding import get_embeddings_batch
+from ..store import Article
+from ..deps import SessionLocal
+from ..ml.embedding import batch_embed_articles
 
 logger = logging.getLogger(__name__)
 

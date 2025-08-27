@@ -19,8 +19,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 import networkx as nx
 
 from ..config import settings
-from ..store import Article, SessionLocal
-from ..ml.embedding import get_embeddings_batch
+from ..store import Article
+from ..deps import SessionLocal
+from ..ml.embedding import batch_embed_articles
 from ..events import publish_trend_event, EventType
 from ..notifications import send_trend_alert
 

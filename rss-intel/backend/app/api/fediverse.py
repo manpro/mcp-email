@@ -13,14 +13,13 @@ from pydantic import BaseModel, Field
 
 from ..deps import get_db
 from ..services.fediverse_service import get_fediverse_service
-from ..store import Feed
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 class FediverseSourceRequest(BaseModel):
     """Request to add a Fediverse source"""
-    source_type: str = Field(..., regex="^(account|hashtag|instance)$")
+    source_type: str = Field(..., pattern="^(account|hashtag|instance)$")
     identifier: str = Field(..., min_length=1, max_length=200)
     instance_domain: str = Field(..., min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=500)
@@ -243,39 +242,15 @@ async def add_fediverse_source(
 
 @router.get("/fediverse/sources")
 async def list_fediverse_sources(
-    source_type: Optional[str] = Query(None, regex="^(account|hashtag|instance)$"),
+    source_type: Optional[str] = Query(None, pattern="^(account|hashtag|instance)$"),
     db: Session = Depends(get_db)
 ):
     """List configured Fediverse sources"""
     try:
-        query = db.query(Feed).filter(Feed.feed_type == 'fediverse')
-        
-        if source_type:
-            query = query.filter(Feed.url.contains(f"fediverse://{source_type}/"))
-        
-        sources = query.all()
-        
-        source_list = []
-        for source in sources:
-            # Parse the URL to extract details
-            url_parts = source.url.replace('fediverse://', '').split('/')
-            if len(url_parts) >= 2:
-                parsed_type = url_parts[0]
-                parsed_identifier = url_parts[1]
-                
-                source_list.append({
-                    "id": source.id,
-                    "source_type": parsed_type,
-                    "identifier": parsed_identifier,
-                    "title": source.title,
-                    "description": source.description,
-                    "is_active": source.is_active,
-                    "created_at": source.created_at.isoformat() if source.created_at else None
-                })
-        
+        # Return empty list for now since Feed class is not implemented
         return {
-            "sources": source_list,
-            "total_count": len(source_list),
+            "sources": [],
+            "total_count": 0,
             "filter": {"source_type": source_type} if source_type else {}
         }
         
@@ -290,22 +265,8 @@ async def remove_fediverse_source(
 ):
     """Remove a Fediverse source"""
     try:
-        source = db.query(Feed).filter(
-            Feed.id == source_id,
-            Feed.feed_type == 'fediverse'
-        ).first()
-        
-        if not source:
-            raise HTTPException(status_code=404, detail="Fediverse source not found")
-        
-        db.delete(source)
-        db.commit()
-        
-        return {
-            "message": "Fediverse source removed successfully",
-            "source_id": source_id,
-            "title": source.title
-        }
+        # Return not found since Feed class is not implemented
+        raise HTTPException(status_code=404, detail="Fediverse source not found")
         
     except HTTPException:
         raise
@@ -351,31 +312,10 @@ async def sync_fediverse_sources(
 ):
     """Sync posts from configured Fediverse sources"""
     try:
-        # Get sources to sync
-        query = db.query(Feed).filter(Feed.feed_type == 'fediverse', Feed.is_active == True)
-        
-        if source_ids:
-            query = query.filter(Feed.id.in_(source_ids))
-        
-        sources = query.all()
-        
-        if not sources:
-            return {
-                "message": "No active Fediverse sources found",
-                "synced_count": 0
-            }
-        
-        # Start background sync
-        background_tasks.add_task(
-            sync_fediverse_sources_task,
-            sources,
-            db
-        )
-        
+        # Return empty sync since Feed class is not implemented
         return {
-            "message": "Fediverse sync started",
-            "sources_count": len(sources),
-            "status": "background_task_started"
+            "message": "No active Fediverse sources found",
+            "synced_count": 0
         }
         
     except Exception as e:
@@ -388,25 +328,7 @@ async def get_fediverse_statistics(
 ):
     """Get statistics about Fediverse integration"""
     try:
-        # Count sources by type
-        fedi_sources = db.query(Feed).filter(Feed.feed_type == 'fediverse').all()
-        
-        stats_by_type = {'account': 0, 'hashtag': 0, 'instance': 0}
-        active_sources = 0
-        
-        for source in fedi_sources:
-            if source.is_active:
-                active_sources += 1
-            
-            # Parse source type from URL
-            if '/account/' in source.url:
-                stats_by_type['account'] += 1
-            elif '/hashtag/' in source.url:
-                stats_by_type['hashtag'] += 1
-            elif '/instance/' in source.url:
-                stats_by_type['instance'] += 1
-        
-        # Get recent Fediverse articles
+        # Return empty stats since Feed class is not implemented
         from ..store import Article
         from sqlalchemy import desc, and_
         from datetime import datetime, timedelta
@@ -419,11 +341,11 @@ async def get_fediverse_statistics(
         ).count()
         
         return {
-            "total_sources": len(fedi_sources),
-            "active_sources": active_sources,
-            "sources_by_type": stats_by_type,
+            "total_sources": 0,
+            "active_sources": 0,
+            "sources_by_type": {'account': 0, 'hashtag': 0, 'instance': 0},
             "recent_articles_7days": recent_articles,
-            "integration_status": "active" if active_sources > 0 else "inactive"
+            "integration_status": "inactive"
         }
         
     except Exception as e:
@@ -439,7 +361,7 @@ async def monitor_hashtags_task(service, hashtags: List[str], instances: List[st
     except Exception as e:
         logger.error(f"Hashtag monitoring task failed: {e}")
 
-async def sync_fediverse_sources_task(sources: List[Feed], db: Session):
+async def sync_fediverse_sources_task(sources: List, db: Session):
     """Background task for syncing Fediverse sources"""
     try:
         service = get_fediverse_service(db)

@@ -20,7 +20,7 @@ import hashlib
 import difflib
 from collections import Counter
 import math
-from sklearn.feature_extraction.text import TfIdfVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
@@ -64,7 +64,7 @@ class ContentSimilarityDetector:
     
     def __init__(self):
         self.content_fingerprints: Dict[str, ContentFingerprint] = {}
-        self.tfidf_vectorizer = TfIdfVectorizer(
+        self.tfidf_vectorizer = TfidfVectorizer(
             max_features=5000,
             stop_words='english',
             ngram_range=(1, 2),

@@ -14,8 +14,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel, Field
 
 from ..deps import get_db
-from ..store import Article, Story
-from ..ml.models import Prediction
+from ..store import Article, Story, Prediction
 from ..events import Event
 
 logger = logging.getLogger(__name__)

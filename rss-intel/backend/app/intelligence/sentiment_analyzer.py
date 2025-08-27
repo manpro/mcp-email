@@ -18,7 +18,8 @@ from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
 from ..config import settings
-from ..store import Article, SessionLocal
+from ..store import Article
+from ..deps import SessionLocal
 
 logger = logging.getLogger(__name__)
 

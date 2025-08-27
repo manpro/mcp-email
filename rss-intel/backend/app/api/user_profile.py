@@ -336,7 +336,7 @@ async def explain_recommendations(
 async def record_user_feedback(
     user_id: str,
     article_id: int,
-    feedback_type: str = Query(..., regex="^(like|dislike|not_interested|report)$"),
+    feedback_type: str = Query(..., pattern="^(like|dislike|not_interested|report)$"),
     reason: str = Query(None, max_length=200),
     db: Session = Depends(get_db)
 ) -> Dict[str, str]:

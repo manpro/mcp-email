@@ -18,7 +18,7 @@ import hashlib
 from sqlalchemy.orm import Session
 from bs4 import BeautifulSoup
 
-from ..store import Article, Feed
+from ..store import Article
 from ..intelligence.content_extractor import extract_content
 
 logger = logging.getLogger(__name__)

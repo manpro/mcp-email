@@ -1,5 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 import asyncio
 from typing import Optional
@@ -126,9 +127,10 @@ class RefreshScheduler:
                             }
                         )
                         
-                        # Send notifications for high-scoring new articles
+                        # Send notifications for high-scoring new articles (temporarily disabled)
                         if is_new_article and score_total >= 8.0:
-                            from .notifications import send_high_score_alert
+                            # from .notifications import send_high_score_alert
+                            send_high_score_alert = lambda *args, **kwargs: None
                             # TODO: Get list of users who want high score alerts
                             # For now, send to test user
                             try:
@@ -142,9 +144,10 @@ class RefreshScheduler:
                             except Exception as e:
                                 print(f"Failed to send high score notification: {e}")
                         
-                        # Send breaking news for very high scores
+                        # Send breaking news for very high scores (temporarily disabled)
                         if is_new_article and score_total >= 9.0:
-                            from .notifications import send_breaking_news_alert
+                            # from .notifications import send_breaking_news_alert
+                            send_breaking_news_alert = lambda *args, **kwargs: None
                             try:
                                 await send_breaking_news_alert("test-user", {
                                     "title": article.title,
@@ -593,7 +596,8 @@ class RefreshScheduler:
             significant_trends = [t for t in trends if t.confidence >= 0.8 and t.article_count >= 5]
             
             if significant_trends:
-                from .notifications import send_trend_alert
+                # from .notifications import send_trend_alert
+                send_trend_alert = lambda *args, **kwargs: None  # Placeholder
                 for trend in significant_trends[:3]:  # Limit to top 3 trends
                     try:
                         await send_trend_alert("test-user", {

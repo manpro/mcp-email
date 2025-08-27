@@ -18,7 +18,7 @@ import hashlib
 from urllib.parse import urlparse
 import json
 
-from ..store import Article, Feed
+from ..store import Article
 from ..models.source_health import SourceHealthReport, ContentExtractionResult
 from ..intelligence.spam_detector import AdvancedSpamDetector
 

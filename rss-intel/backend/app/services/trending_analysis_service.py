@@ -22,7 +22,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import LatentDirichletAllocation
 import networkx as nx
 
-from ..store import Article, Event, TrendingTopic, TopicAnalysis
+from ..store import Article, Event
+from ..models.trending import TrendingTopic, TopicAnalysis
 from ..intelligence.content_extractor import extract_keywords
 
 logger = logging.getLogger(__name__)

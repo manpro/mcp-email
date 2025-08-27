@@ -11,7 +11,7 @@ from sqlalchemy.sql import func
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from ..database import Base
+from ..store import Base
 
 class SourceHealthReport(Base):
     """Health report for a content source"""

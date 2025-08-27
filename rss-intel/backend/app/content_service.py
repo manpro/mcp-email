@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 import httpx
 from urllib.robotparser import RobotFileParser
 
-from .content_extractor import ContentExtractor, ArticleContent
+from .intelligence.content_extractor import ContentExtractor, ArticleContent
 from .store import Article, ArticleStore
 
 logger = logging.getLogger(__name__)
