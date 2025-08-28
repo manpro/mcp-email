@@ -242,14 +242,115 @@ class ArticleStore:
             article.content_hash = content_hash
             article.updated_at = datetime.utcnow()
         else:
-            # Create new
+            # Create new - apply initial classification
             article_data['content_hash'] = content_hash
+            article_data = self._apply_initial_classification(article_data)
             article = Article(**article_data)
             self.db.add(article)
         
         self.db.commit()
         self.db.refresh(article)
         return article
+    
+    def _apply_initial_classification(self, article_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Apply initial spam/promotional classification when article is first ingested"""
+        import re
+        from datetime import datetime, timezone
+        
+        title = article_data.get('title', '').lower()
+        url = article_data.get('url', '').lower()
+        source = article_data.get('source', '').lower()
+        content = article_data.get('content', '').lower()
+        published_at = article_data.get('published_at')
+        
+        # Initialize flags if not present
+        if 'flags' not in article_data:
+            article_data['flags'] = {}
+        
+        # 1. Promotional domain detection
+        promotional_domains = [
+            'tradingview.com/chart/',
+            'finextra.com/event-info/',
+            '/press-releases/',
+            '/webinar',
+            '/events/'
+        ]
+        
+        is_promotional_url = any(domain in url for domain in promotional_domains)
+        
+        # 2. Promotional source detection
+        promotional_sources = [
+            'tradingview ideas',
+            'pr newswire',
+            'business wire',
+            'marketwatch press release'
+        ]
+        
+        is_promotional_source = any(src in source for src in promotional_sources)
+        
+        # 3. Future event detection
+        is_future_event = False
+        if published_at and isinstance(published_at, datetime):
+            now = datetime.now(timezone.utc)
+            if published_at > now:
+                is_future_event = True
+        
+        # 4. Event keyword detection in title/content
+        event_keywords = [
+            'webinar', 'register', 'sign up', 'join our', 'panel of experts',
+            'hosted in association', 'event', 'conference', 'summit',
+            'register for this', 'join this', 'attend', 'speakers include',
+            'press release', 'announces', 'partnership with'
+        ]
+        
+        full_text = f"{title} {content}"
+        event_keyword_matches = sum(1 for keyword in event_keywords if keyword in full_text)
+        has_event_keywords = event_keyword_matches >= 2
+        
+        # 5. Future date patterns in title (september, october, etc.)
+        future_date_patterns = [
+            r'\b(september|october|november|december)\b',
+            r'\b202[5-9]\b',  # Years 2025-2029
+            r'\b20[3-9][0-9]\b'  # Years 2030+
+        ]
+        
+        has_future_dates = any(re.search(pattern, title) for pattern in future_date_patterns)
+        
+        # Apply classification
+        spam_score = 0
+        spam_reasons = []
+        
+        if is_promotional_url:
+            spam_score -= 999
+            spam_reasons.append("promotional_domain")
+            
+        if is_promotional_source:
+            spam_score -= 999 
+            spam_reasons.append("promotional_source")
+            
+        if is_future_event:
+            spam_score -= 999
+            spam_reasons.append("future_event")
+            
+        if has_event_keywords and (is_promotional_url or is_promotional_source):
+            spam_score -= 500
+            spam_reasons.append("promotional_event_content")
+            
+        if has_future_dates:
+            spam_score -= 999
+            spam_reasons.append("future_date_in_title")
+        
+        # Apply spam classification
+        if spam_score < 0:
+            article_data['score_total'] = spam_score
+            article_data['flags']['spam'] = True
+            article_data['flags']['spam_reasons'] = spam_reasons
+            article_data['flags']['auto_classified'] = True
+            article_data['flags']['classification_time'] = datetime.now(timezone.utc).isoformat()
+            
+            logger.info(f"Auto-classified article as spam: '{article_data.get('title')}' - Reasons: {spam_reasons}, Score: {spam_score}")
+        
+        return article_data
     
     def get_articles(
         self,
