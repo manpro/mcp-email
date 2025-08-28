@@ -320,5 +320,5 @@ class ContentExtractionService:
     async def close(self):
         """Cleanup resources"""
         # ContentExtractor doesn't need explicit cleanup
-        if hasattr(self.extractor, 'close'):
+        if hasattr(self.extractor, 'close') and callable(getattr(self.extractor, 'close')):
             await self.extractor.close()

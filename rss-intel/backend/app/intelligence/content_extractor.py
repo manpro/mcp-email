@@ -40,6 +40,20 @@ class ArticleContent:
     def __post_init__(self):
         if self.keywords is None:
             self.keywords = []
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert ArticleContent to dictionary for database storage"""
+        return {
+            'full_content': self.content,
+            'content_html': self.content,  # For now, same as content
+            'content_summary': self.summary,
+            'authors': [self.author] if self.author else [],
+            'top_image_url': self.image_url,
+            'content_keywords': self.keywords,
+            'extraction_status': 'success',
+            'extracted_at': datetime.utcnow(),
+            'extraction_error': None
+        }
 
 class ContentExtractor:
     """Web content extraction service"""
