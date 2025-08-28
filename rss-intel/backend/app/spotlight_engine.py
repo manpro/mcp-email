@@ -131,9 +131,14 @@ class SpotlightEngine:
         now = datetime.now(timezone.utc)
         since_date = now - timedelta(hours=window_hours)
         
-        # Query articles with scores
+        # Query articles with scores - filter out articles without readable content
         articles = self.db.query(Article).filter(
             Article.published_at >= since_date
+        ).filter(
+            # Require at least some form of readable content
+            Article.full_content.isnot(None) | 
+            Article.content_summary.isnot(None) |
+            (Article.content.isnot(None) & (func.length(Article.content) > 50))
         ).all()
         
         # Calculate scores and sort
