@@ -22,6 +22,7 @@ import { SpamTab } from './SpamTab';
 import FediverseTab from './FediverseTab';
 import SourceHealthTab from './SourceHealthTab';
 import { TrendingTab } from './TrendingTab';
+import BriefingsTab from './BriefingsTab';
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -41,7 +42,7 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   // Tab management
-  type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'experiments' | 'spam' | 'email' | 'analytics' | 'fediverse' | 'health' | 'trending';
+  type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'briefings' | 'experiments' | 'spam' | 'email' | 'analytics' | 'fediverse' | 'health' | 'trending';
   const currentTab: TabType = (filters.tab as TabType) || 'browse';
 
   // Load config on mount
@@ -497,6 +498,17 @@ export default function Dashboard() {
             <span className={headerCollapsed ? "hidden lg:inline" : ""}>Spotlight</span>
           </Button>
           <Button
+            variant={currentTab === 'briefings' ? 'default' : 'ghost'}
+            onClick={() => updateFilters({ tab: 'briefings' })}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap",
+              headerCollapsed ? "text-sm px-2" : ""
+            )}
+          >
+            <Mail className="h-4 w-4 text-blue-500" />
+            <span className={headerCollapsed ? "hidden lg:inline" : ""}>Briefings</span>
+          </Button>
+          <Button
             variant={currentTab === 'experiments' ? 'default' : 'ghost'}
             onClick={() => updateFilters({ tab: 'experiments' })}
             className={cn(
@@ -772,6 +784,10 @@ export default function Dashboard() {
         ) : currentTab === 'spotlight' ? (
           <div className="p-4 overflow-y-auto h-full">
             <SpotlightTab onArticleClick={setSelectedArticle} />
+          </div>
+        ) : currentTab === 'briefings' ? (
+          <div className="p-4 overflow-y-auto h-full">
+            <BriefingsTab />
           </div>
         ) : currentTab === 'email' ? (
           <div className="p-4 overflow-y-auto h-full">

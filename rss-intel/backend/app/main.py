@@ -37,6 +37,7 @@ from .api.learning import router as learning_router
 from .api.ab_testing import router as ab_testing_router
 from .api.intelligence import router as intelligence_router
 from .api.cache import router as cache_router
+from .api.briefings import router as briefings_router
 from .websocket_hub import connection_manager, event_broadcaster
 from .events import event_stream, cleanup_events
 from .notifications import (
@@ -107,6 +108,7 @@ app.include_router(learning_router, tags=["learning"])
 app.include_router(ab_testing_router, tags=["ab_testing"])
 app.include_router(intelligence_router, prefix="/api/intelligence", tags=["intelligence"])
 app.include_router(cache_router, tags=["cache"])
+app.include_router(briefings_router, prefix="/api", tags=["briefings"])
 
 # Admin router temporarily disabled due to spam detection conflicts
 # from .api.admin import router as admin_router

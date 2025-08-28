@@ -377,6 +377,33 @@ class RefreshScheduler:
             name="Generate daily spotlight digest",
             replace_existing=True
         )
+        
+        # Generate morning briefing at 08:00 Europe/Stockholm
+        self.scheduler.add_job(
+            lambda: self._generate_briefing('morning'),
+            trigger=CronTrigger(hour=8, minute=0, timezone='Europe/Stockholm'),
+            id="generate_morning_briefing",
+            name="Generate morning briefing",
+            replace_existing=True
+        )
+        
+        # Generate lunch briefing at 12:00 Europe/Stockholm  
+        self.scheduler.add_job(
+            lambda: self._generate_briefing('lunch'),
+            trigger=CronTrigger(hour=12, minute=0, timezone='Europe/Stockholm'),
+            id="generate_lunch_briefing",
+            name="Generate lunch briefing",
+            replace_existing=True
+        )
+        
+        # Generate evening briefing at 20:00 Europe/Stockholm
+        self.scheduler.add_job(
+            lambda: self._generate_briefing('evening'),
+            trigger=CronTrigger(hour=20, minute=0, timezone='Europe/Stockholm'),
+            id="generate_evening_briefing",
+            name="Generate evening briefing",
+            replace_existing=True
+        )
     
     async def _embed_new_articles(self):
         """Background job to embed new articles"""
@@ -499,6 +526,26 @@ class RefreshScheduler:
             print(f"Daily spotlight generated: {result}")
         except Exception as e:
             print(f"Spotlight generation error: {e}")
+        finally:
+            db.close()
+    
+    async def _generate_briefing(self, time_slot: str):
+        """Background job to generate daily briefings"""
+        db = SessionLocal()
+        try:
+            from .briefing_engine import BriefingEngine
+            from datetime import date
+            
+            engine = BriefingEngine(db)
+            today = date.today()
+            
+            briefing = engine.generate_briefing(time_slot, today)
+            print(f"{time_slot.capitalize()} briefing generated: {briefing.id} with {len(briefing.items) if briefing.items else 0} items")
+            
+        except Exception as e:
+            print(f"{time_slot.capitalize()} briefing generation error: {e}")
+            import traceback
+            traceback.print_exc()
         finally:
             db.close()
     

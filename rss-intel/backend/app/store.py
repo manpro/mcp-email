@@ -221,6 +221,48 @@ class ImageDiagnostic(Base):
     article = relationship("Article")
 
 
+class DailyBriefing(Base):
+    __tablename__ = "daily_briefings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    briefing_date = Column(Date, nullable=False, index=True)
+    time_slot = Column(String(10), nullable=False, index=True)  # 'morning', 'lunch', 'evening'
+    title = Column(Text, nullable=False)
+    subtitle = Column(Text, nullable=True)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    published = Column(Boolean, default=False, nullable=False)
+    metrics = Column(JSONB, nullable=True)
+    
+    # Relationships
+    items = relationship("BriefingItem", back_populates="briefing", cascade="all, delete-orphan")
+    
+    __table_args__ = (
+        Index('ix_daily_briefing_date_slot', 'briefing_date', 'time_slot'),
+    )
+
+
+class BriefingItem(Base):
+    __tablename__ = "briefing_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    briefing_id = Column(Integer, ForeignKey('daily_briefings.id'), nullable=False, index=True)
+    story_id = Column(Integer, ForeignKey('stories.id'), nullable=True, index=True)
+    article_id = Column(Integer, ForeignKey('articles.id'), nullable=False, index=True)
+    position = Column(Integer, nullable=False)
+    title = Column(Text, nullable=False)
+    summary = Column(Text, nullable=False)
+    summary_language = Column(String(5), default='en', nullable=False)
+    ai_summary = Column(Text, nullable=True)  # AI-generated content summary
+    recommendation_score = Column(Float, nullable=True)
+    recommendation_reasons = Column(ARRAY(String), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationships
+    briefing = relationship("DailyBriefing", back_populates="items")
+    story = relationship("Story")
+    article = relationship("Article")
+
+
 
 class ArticleStore:
     def __init__(self, db: Session):
