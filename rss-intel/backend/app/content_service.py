@@ -204,7 +204,7 @@ class ContentExtractionService:
                     await asyncio.sleep(wait_time)
                     self.stats['retries'] += 1
                 
-                content = await self.extractor.extract_article(url)
+                content = await self.extractor.extract_from_url(url)
                 if content:
                     return content
                     
@@ -319,4 +319,6 @@ class ContentExtractionService:
     
     async def close(self):
         """Cleanup resources"""
-        await self.extractor.close()
+        # ContentExtractor doesn't need explicit cleanup
+        if hasattr(self.extractor, 'close'):
+            await self.extractor.close()
