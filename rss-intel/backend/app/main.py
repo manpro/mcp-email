@@ -235,7 +235,7 @@ async def decide_action(
         raise HTTPException(status_code=404, detail="Article not found")
     
     # Actions that don't require FreshRSS connection
-    local_only_actions = {"downvote", "undownvote"}
+    local_only_actions = {"downvote", "undownvote", "label_add", "label_remove"}
     
     client = None
     if request.action not in local_only_actions:
@@ -279,33 +279,17 @@ async def decide_action(
                 db.commit()
             message = "Entry archived"
             
-        elif request.action == "label_add" and request.label:
-            success = client.add_label(entry_id, request.label)
-            if success:
-                article.flags = article.flags or {}
-                article.flags[request.label] = True
-                db.commit()
-            message = f"Label '{request.label}' added"
-            
-        elif request.action == "label_remove" and request.label:
-            success = client.remove_label(entry_id, request.label)
-            if success:
-                article.flags = article.flags or {}
-                article.flags.pop(request.label, None)
-                db.commit()
-            message = f"Label '{request.label}' removed"
-            
         elif request.action == "downvote":
             # Downvote doesn't interact with FreshRSS, just local flag
             success = True
             article.flags = article.flags or {}
             article.flags["downvoted"] = True
-            # Add event tracking - use correct column names
+            # Add event tracking - use 'dismiss' as closest equivalent to downvote
             from .store import Event
             event = Event(
                 article_id=article.id,
                 user_id='owner',  # Default user for now
-                type='downvote'
+                type='dismiss'
             )
             db.add(event)
             db.commit()
@@ -316,16 +300,42 @@ async def decide_action(
             success = True
             article.flags = article.flags or {}
             article.flags.pop("downvoted", None)
-            # Add event tracking - use correct column names
+            # Skip event tracking for undownvote to avoid DB constraint issues
+            # from .store import Event
+            # event = Event(
+            #     article_id=article.id,
+            #     user_id='owner',  # Default user for now
+            #     type='undownvote'  # Not allowed by DB constraint
+            # )
+            # db.add(event)
+            db.commit()
+            message = "Downvote removed"
+            
+        elif request.action == "label_add" and request.label:
+            # Add label locally (don't sync with FreshRSS)
+            success = True
+            article.flags = article.flags or {}
+            article.flags[request.label] = True
+            # Add event tracking
             from .store import Event
             event = Event(
                 article_id=article.id,
-                user_id='owner',  # Default user for now
-                type='undownvote'
+                user_id='owner',
+                type='label_add'
             )
             db.add(event)
             db.commit()
-            message = "Downvote removed"
+            message = f"Label '{request.label}' added locally"
+            
+        elif request.action == "label_remove" and request.label:
+            # Remove label locally (don't sync with FreshRSS)
+            success = True
+            article.flags = article.flags or {}
+            article.flags.pop(request.label, None)
+            # Skip event tracking for label_remove to avoid DB constraint issues
+            # Event type 'label_remove' not allowed by database constraint
+            db.commit()
+            message = f"Label '{request.label}' removed locally"
     
     finally:
         # Only close client if it was created
