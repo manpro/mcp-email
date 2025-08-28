@@ -1,8 +1,26 @@
 keywords:
-  # AI and Technology
-  ai: 10
-  artificial intelligence: 10
-  machine learning: 10
+  # AI and Technology (BOOSTED)
+  ai: 15
+  artificial intelligence: 15
+  machine learning: 14
+  deep learning: 14
+  neural network: 13
+  transformer: 13
+  llm: 14
+  large language model: 14
+  gpt: 12
+  openai: 12
+  google ai: 12
+  research: 11
+  algorithm: 10
+  data science: 10
+  computer vision: 12
+  natural language: 12
+  arxiv: 13
+  nature: 12
+  mit: 12
+  
+  # Existing tech keywords
   blockchain: 9
   crypto: 10
   cryptocurrency: 10

@@ -228,7 +228,11 @@ export default function BriefingsTab() {
       <Card key={timeSlot} className="cursor-pointer hover:shadow-md transition-shadow">
         <CardHeader 
           className="pb-4"
-          onClick={() => setSelectedTimeSlot(`${date}-${timeSlot}`)}
+          onClick={() => {
+            const selectedId = `${date}-${timeSlot}`;
+            console.log('Clicking briefing card:', { date, timeSlot, selectedId });
+            setSelectedTimeSlot(selectedId);
+          }}
         >
           <div className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
@@ -272,11 +276,17 @@ export default function BriefingsTab() {
   }
 
   const renderDetailedView = () => {
+    console.log('renderDetailedView called with selectedTimeSlot:', selectedTimeSlot);
     if (!selectedTimeSlot) return null
 
-    const [date, timeSlot] = selectedTimeSlot.split('-')
+    // Split selectedTimeSlot correctly (format: "YYYY-MM-DD-timeSlot")
+    const parts = selectedTimeSlot.split('-')
+    const date = parts.slice(0, 3).join('-') // "YYYY-MM-DD"
+    const timeSlot = parts[3] // "morning", "lunch", or "evening"
+    console.log('Parsed from selectedTimeSlot:', { parts, date, timeSlot });
     const briefingData = getBriefingForDate(date)
     const briefing = briefingData?.briefings[timeSlot as keyof typeof briefingData.briefings]
+    console.log('Briefing data found:', { briefingData, briefing });
 
     if (!briefing) return null
 

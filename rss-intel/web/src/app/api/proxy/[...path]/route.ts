@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Use backend container name when running in Docker
 const BACKEND_URL = process.env.BACKEND_URL || 'http://backend:8000';
+console.log(`[PROXY DEBUG] Using BACKEND_URL: ${BACKEND_URL}`);
 
 function buildHeaders(request: NextRequest) {
   const headers: Record<string, string> = {
@@ -67,6 +68,8 @@ export async function GET(
     ? `${BACKEND_URL}/${path}${searchParams ? `?${searchParams}` : ''}`
     : `${BACKEND_URL}/api/${path}${searchParams ? `?${searchParams}` : ''}`;
 
+  console.log(`[PROXY DEBUG] Proxying GET request to: ${url} (path: ${path}, isRootEndpoint: ${isRootEndpoint})`);
+
   try {
     const response = await fetch(url, {
       headers: buildHeaders(request),
@@ -112,6 +115,8 @@ export async function POST(
   const url = isRootEndpoint 
     ? `${BACKEND_URL}/${path}`
     : `${BACKEND_URL}/api/${path}`;
+
+  console.log(`[PROXY DEBUG] Proxying POST request to: ${url} (path: ${path}, isRootEndpoint: ${isRootEndpoint})`);
 
   try {
     let body = {};

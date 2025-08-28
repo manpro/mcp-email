@@ -233,11 +233,79 @@ Summary:"""
         scored_articles.sort(key=lambda x: x['score'], reverse=True)
         
         # Apply diversity rules to avoid source/topic clustering
+        # First, categorize articles by content type
+        categories = {
+            'ai': [],
+            'crypto': [], 
+            'payments': [],
+            'other': []
+        }
+        
+        for item in scored_articles:
+            article = item['article']
+            title_lower = article.title.lower()
+            content_lower = (article.content or '').lower()
+            combined_text = title_lower + ' ' + content_lower
+            
+            # Categorize based on keywords
+            if any(keyword in combined_text for keyword in ['ai', 'artificial intelligence', 'machine learning', 'neural', 'llm', 'gpt', 'arxiv', 'research']):
+                categories['ai'].append(item)
+            elif any(keyword in combined_text for keyword in ['crypto', 'bitcoin', 'ethereum', 'blockchain', 'defi']):
+                categories['crypto'].append(item)
+            elif any(keyword in combined_text for keyword in ['payment', 'fintech', 'banking', 'visa', 'mastercard', 'stripe']):
+                categories['payments'].append(item)
+            else:
+                categories['other'].append(item)
+        
+        # Ensure diversity by selecting from each category
         selected_articles = []
         source_count = {}
         max_per_source = 2
         
+        # Priority allocation per category based on max_items
+        max_items = config['max_items']
+        if max_items >= 6:
+            # For larger briefings, ensure representation from each category
+            category_targets = {'ai': max(2, max_items // 4), 'crypto': max(1, max_items // 5), 'payments': max(1, max_items // 5), 'other': max_items}
+        else:
+            # For smaller briefings, still try to get at least one from each if available
+            category_targets = {'ai': max(1, max_items // 3), 'crypto': 1, 'payments': 1, 'other': max_items}
+        
+        # Select articles ensuring diversity
+        for category in ['ai', 'crypto', 'payments', 'other']:
+            target = category_targets.get(category, 1)
+            selected_from_category = 0
+            
+            for item in categories[category]:
+                if len(selected_articles) >= max_items:
+                    break
+                if selected_from_category >= target:
+                    break
+                    
+                article = item['article']
+                
+                # Source diversity check
+                source_articles = source_count.get(article.source, 0)
+                if source_articles >= max_per_source:
+                    continue
+                
+                # Add to selection
+                selected_articles.append(item)
+                source_count[article.source] = source_articles + 1
+                selected_from_category += 1
+            
+            if len(selected_articles) >= max_items:
+                break
+        
+        # Fill remaining slots with highest scoring articles if we haven't reached max_items
         for item in scored_articles:
+            if len(selected_articles) >= max_items:
+                break
+            
+            # Skip if already selected
+            if item in selected_articles:
+                continue
+                
             article = item['article']
             
             # Source diversity check
@@ -248,10 +316,6 @@ Summary:"""
             # Add to selection
             selected_articles.append(item)
             source_count[article.source] = source_articles + 1
-            
-            # Stop when we have enough articles
-            if len(selected_articles) >= config['max_items']:
-                break
         
         logger.info(f"Selected {len(selected_articles)} articles for {time_slot} briefing on {target_date}")
         return selected_articles
