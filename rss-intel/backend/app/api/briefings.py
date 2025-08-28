@@ -54,6 +54,43 @@ async def get_briefings_status(
     }
 
 
+@router.get("/briefings/recent")
+async def get_recent_briefings(
+    days_back: int = Query(3, ge=1, le=7, description="Number of days to look back (1-7)"),
+    db: Session = Depends(get_db)
+) -> Dict[str, Any]:
+    """Get recent briefings for the last N days"""
+    
+    end_date = date.today()
+    start_date = end_date - timedelta(days=days_back-1)
+    
+    briefings = db.query(DailyBriefing).filter(
+        DailyBriefing.briefing_date >= start_date,
+        DailyBriefing.briefing_date <= end_date
+    ).order_by(
+        DailyBriefing.briefing_date.desc(),
+        DailyBriefing.time_slot
+    ).all()
+    
+    # Group by date
+    engine = BriefingEngine(db)
+    briefings_by_date = {}
+    
+    for briefing in briefings:
+        date_str = briefing.briefing_date.isoformat()
+        if date_str not in briefings_by_date:
+            briefings_by_date[date_str] = {}
+        
+        briefings_by_date[date_str][briefing.time_slot] = engine.export_briefing_as_json(briefing)
+    
+    return {
+        'start_date': start_date.isoformat(),
+        'end_date': end_date.isoformat(),
+        'briefings_by_date': briefings_by_date,
+        'total_briefings': len(briefings)
+    }
+
+
 @router.get("/briefings/{briefing_date}")
 async def get_briefings_for_date(
     briefing_date: str,
@@ -188,41 +225,4 @@ async def generate_all_briefings_for_date(
         'date': briefing_date,
         'results': results,
         'success_count': results['total_success']
-    }
-
-
-@router.get("/briefings/recent")
-async def get_recent_briefings(
-    days_back: int = Query(3, ge=1, le=7, description="Number of days to look back (1-7)"),
-    db: Session = Depends(get_db)
-) -> Dict[str, Any]:
-    """Get recent briefings for the last N days"""
-    
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days_back-1)
-    
-    briefings = db.query(DailyBriefing).filter(
-        DailyBriefing.briefing_date >= start_date,
-        DailyBriefing.briefing_date <= end_date
-    ).order_by(
-        DailyBriefing.briefing_date.desc(),
-        DailyBriefing.time_slot
-    ).all()
-    
-    # Group by date
-    engine = BriefingEngine(db)
-    briefings_by_date = {}
-    
-    for briefing in briefings:
-        date_str = briefing.briefing_date.isoformat()
-        if date_str not in briefings_by_date:
-            briefings_by_date[date_str] = {}
-        
-        briefings_by_date[date_str][briefing.time_slot] = engine.export_briefing_as_json(briefing)
-    
-    return {
-        'start_date': start_date.isoformat(),
-        'end_date': end_date.isoformat(),
-        'briefings_by_date': briefings_by_date,
-        'total_briefings': len(briefings)
     }

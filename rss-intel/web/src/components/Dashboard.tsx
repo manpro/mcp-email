@@ -23,6 +23,7 @@ import FediverseTab from './FediverseTab';
 import SourceHealthTab from './SourceHealthTab';
 import { TrendingTab } from './TrendingTab';
 import BriefingsTab from './BriefingsTab';
+import BriefingsTabSimple from './BriefingsTabSimple';
 
 export default function Dashboard() {
   const [articles, setArticles] = useState<Article[]>([]);
@@ -44,6 +45,11 @@ export default function Dashboard() {
   // Tab management
   type TabType = 'browse' | 'recommended' | 'search' | 'ask' | 'spotlight' | 'briefings' | 'experiments' | 'spam' | 'email' | 'analytics' | 'fediverse' | 'health' | 'trending';
   const currentTab: TabType = (filters.tab as TabType) || 'browse';
+  
+  // Debug: Log tab information
+  console.log('DEBUG - filters:', filters);
+  console.log('DEBUG - filters.tab:', filters.tab);
+  console.log('DEBUG - currentTab:', currentTab);
 
   // Load config on mount
   useEffect(() => {
