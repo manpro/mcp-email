@@ -105,10 +105,11 @@ class Event(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     article_id = Column(Integer, ForeignKey('articles.id'), nullable=False, index=True)
-    event_type = Column(String(50), nullable=False, index=True)  # impression, open, external_click, star, dismiss, mark_read, label_add
+    user_id = Column(String(50), nullable=False, default='owner')
+    type = Column(String(20), nullable=False)  # impression, open, external_click, star, dismiss, mark_read, label_add
     duration_ms = Column(Integer, nullable=True)  # Time spent viewing
     visible_ms = Column(Integer, nullable=True)   # Time article was visible on screen
-    scroll_pct = Column(Float, nullable=True)     # Percentage scrolled
+    scroll_pct = Column(Integer, nullable=True)     # Percentage scrolled (stored as smallint in DB)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
     
     # Relationship

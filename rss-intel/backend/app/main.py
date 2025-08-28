@@ -234,9 +234,14 @@ async def decide_action(
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
     
-    client = FreshRSSClient()
-    if not client.login():
-        raise HTTPException(status_code=503, detail="FreshRSS connection failed")
+    # Actions that don't require FreshRSS connection
+    local_only_actions = {"downvote", "undownvote"}
+    
+    client = None
+    if request.action not in local_only_actions:
+        client = FreshRSSClient()
+        if not client.login():
+            raise HTTPException(status_code=503, detail="FreshRSS connection failed")
     
     success = False
     message = ""
@@ -295,11 +300,12 @@ async def decide_action(
             success = True
             article.flags = article.flags or {}
             article.flags["downvoted"] = True
-            # Add event tracking
+            # Add event tracking - use correct column names
             from .store import Event
             event = Event(
                 article_id=article.id,
-                event_type='downvote'
+                user_id='owner',  # Default user for now
+                type='downvote'
             )
             db.add(event)
             db.commit()
@@ -310,18 +316,21 @@ async def decide_action(
             success = True
             article.flags = article.flags or {}
             article.flags.pop("downvoted", None)
-            # Add event tracking
+            # Add event tracking - use correct column names
             from .store import Event
             event = Event(
                 article_id=article.id,
-                event_type='undownvote'
+                user_id='owner',  # Default user for now
+                type='undownvote'
             )
             db.add(event)
             db.commit()
             message = "Downvote removed"
     
     finally:
-        client.client.close()
+        # Only close client if it was created
+        if client is not None:
+            client.client.close()
     
     if not success:
         raise HTTPException(status_code=500, detail="Action failed")
