@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup
 import blurhash
 from datetime import datetime, timedelta
 import asyncio
+from .proxy_utils import create_httpx_client
 
 class ImageCandidate(NamedTuple):
     url: str
@@ -202,7 +203,7 @@ class ImageProcessor:
     def _fetch_og_image(self, page_url: str) -> Optional[ImageCandidate]:
         """Fetch page and extract og:image or twitter:image"""
         try:
-            with httpx.Client(timeout=5) as client:
+            with create_httpx_client(timeout=5) as client:
                 response = client.get(page_url, headers={'User-Agent': self.user_agent})
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, 'lxml')

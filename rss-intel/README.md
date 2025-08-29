@@ -44,6 +44,17 @@ RSS Intelligence Dashboard is the most advanced open-source content intelligence
 - **Dark/Light Theme**: Adaptive UI with user preferences
 - **Real-Time Updates**: Live content without page refreshes
 
+## 🌐 Hetzner Proxy Integration
+
+RSS Intelligence använder nu automatiskt vår WireGuard proxy via Hetzner Cloud för:
+- **Anonymiserad RSS-hämtning** via 95.216.172.130 
+- **Geografiska bypass** för blockerade feeds
+- **Förbättrad tillgänglighet** och prestanda
+
+**Proxy är automatiskt aktiverat** när WireGuard-tunnel är igång. Se [HETZNER_PROXY_INTEGRATION.md](HETZNER_PROXY_INTEGRATION.md) för detaljer.
+
+---
+
 ## Quick Start
 
 ### Development Setup

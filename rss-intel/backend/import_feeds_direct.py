@@ -11,6 +11,7 @@ from app.store import ArticleStore
 from app.deps import get_db
 from app.scoring import ScoringEngine
 from app.images import ImageProcessor
+from app.proxy_utils import create_httpx_client, get_proxy_config, test_proxy_connection
 import asyncio
 
 # Test feeds
@@ -26,6 +27,17 @@ async def main():
     print("🚀 Direct RSS import and scoring with images (inside Docker)...")
     print("=" * 70)
     
+    # Test proxy connection först - MANDATORY PROXY (no fallback)
+    print("\n🌐 Verifierar MANDATORY proxy-anslutning...")
+    proxy_working = test_proxy_connection()
+    if proxy_working:
+        print("✅ Hetzner proxy fungerar - RSS-feeds hämtas ENDAST via 95.216.172.130")
+    else:
+        print("❌ KRITISKT FEL: Proxy fungerar inte!")
+        print("🚫 RSS Intelligence stängs ner - ingen fallback tillåten!")
+        return  # Avsluta funktionen
+    print("-" * 70)
+    
     db = next(get_db())
     store = ArticleStore(db)
     scorer = ScoringEngine()
@@ -40,8 +52,9 @@ async def main():
             print(f"   URL: {feed_url}")
             
             try:
-                # Fetch RSS feed
-                response = httpx.get(feed_url, timeout=30, follow_redirects=True)
+                # Fetch RSS feed via proxy
+                with create_httpx_client(timeout=30) as client:
+                    response = client.get(feed_url)
                 feed = feedparser.parse(response.text)
                 
                 print(f"   Found {len(feed.entries)} entries")
