@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Loader2, AlertCircle, RefreshCw, Maximize2, Minimize2 } from 'lucide-react';
+import { X, ExternalLink, Loader2, AlertCircle, RefreshCw, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 
 interface ArticleReaderProps {
@@ -29,6 +29,7 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
   const [content, setContent] = useState<ArticleContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [extracting, setExtracting] = useState(false);
+  const [formatting, setFormatting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'extracted' | 'iframe'>('extracted');
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -76,6 +77,40 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
     }
   };
 
+  const formatWithAI = async () => {
+    setFormatting(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api/intelligence/format/article/${article.id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`AI formatting failed: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      
+      if (result.success && result.formatted_content) {
+        // Update content with AI-formatted version
+        setContent(prev => prev ? {
+          ...prev,
+          content_html: result.formatted_content
+        } : null);
+      } else {
+        setError('AI formatting failed to improve the content');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to format with AI');
+    } finally {
+      setFormatting(false);
+    }
+  };
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen);
   };
@@ -104,6 +139,60 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
     });
     
     return tempDiv.innerHTML;
+  };
+
+  // Format plain text into readable paragraphs
+  const formatTextContent = (text: string) => {
+    if (!text) return [];
+    
+    // Split by double newlines first (paragraph breaks)
+    let paragraphs = text.split(/\n\s*\n/);
+    
+    // If no double newlines, split by single newlines but be more selective
+    if (paragraphs.length === 1) {
+      paragraphs = text.split(/\n(?=[A-Z]|[0-9]|\s*[-•*])/);
+    }
+    
+    return paragraphs
+      .map(para => para.trim())
+      .filter(para => para.length > 0 && para.length > 10) // Filter out very short lines
+      .map((paragraph, index) => (
+        <p key={index} className="mb-6 text-lg leading-8 text-gray-800 dark:text-gray-200">
+          {paragraph}
+        </p>
+      ));
+  };
+
+  // Process HTML content to add better styling
+  const processHtmlContent = (html: string): string => {
+    if (!html) return html;
+    
+    // Create a temporary div to parse HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // If it's just one big text block without proper paragraphs
+    const textContent = tempDiv.textContent || tempDiv.innerText || '';
+    if (!html.includes('<p>') && !html.includes('<br>') && textContent.length > 200) {
+      // Convert plain text to paragraphs
+      const paragraphs = textContent.split(/\n\s*\n/).filter(p => p.trim().length > 10);
+      if (paragraphs.length > 1) {
+        return paragraphs.map(p => `<p>${p.trim()}</p>`).join('');
+      }
+      
+      // If still no paragraphs, split by sentence groups
+      const sentences = textContent.split(/\.\s+/).filter(s => s.trim().length > 0);
+      if (sentences.length > 3) {
+        const paragraphGroups = [];
+        for (let i = 0; i < sentences.length; i += 3) {
+          const group = sentences.slice(i, i + 3).join('. ') + (i + 3 < sentences.length ? '.' : '');
+          paragraphGroups.push(`<p>${group}</p>`);
+        }
+        return paragraphGroups.join('');
+      }
+    }
+    
+    return html;
   };
 
   const renderContent = () => {
@@ -171,39 +260,63 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
     }
 
     return (
-      <div className="prose prose-lg max-w-none p-6">
+      <article className="max-w-4xl mx-auto px-8 py-12 bg-white dark:bg-gray-900">
         {content.top_image_url && (
-          <img
-            src={content.top_image_url}
-            alt={article.title}
-            className="w-full max-h-96 object-cover rounded-lg mb-6"
-          />
+          <div className="mb-8">
+            <img
+              src={content.top_image_url}
+              alt={article.title}
+              className="w-full max-h-[500px] object-cover rounded-xl shadow-lg"
+            />
+          </div>
         )}
         
-        <h1 className="text-3xl font-bold mb-4">{article.title}</h1>
-        
-        <div className="text-sm text-gray-600 mb-6 space-y-1">
-          {content.authors && content.authors.length > 0 && (
-            <p>By {content.authors.join(', ')}</p>
-          )}
-          <p>{new Date(article.published_at).toLocaleDateString()}</p>
-          <p className="text-blue-600">{article.source}</p>
-        </div>
+        <header className="mb-12">
+          <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6 text-gray-900 dark:text-white">
+            {article.title}
+          </h1>
+          
+          <div className="flex flex-wrap items-center gap-6 text-gray-600 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-6">
+            {content.authors && content.authors.length > 0 && (
+              <div className="flex items-center">
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {content.authors.join(', ')}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center space-x-4">
+              <time className="text-sm">
+                {new Date(article.published_at).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long', 
+                  day: 'numeric'
+                })}
+              </time>
+              <span className="text-blue-600 dark:text-blue-400 font-medium">
+                {article.source}
+              </span>
+            </div>
+          </div>
+        </header>
 
         {content.content_summary && (
-          <div className="bg-gray-100 p-4 rounded-lg mb-6">
-            <h3 className="font-semibold mb-2">Summary</h3>
-            <p className="text-gray-700">{content.content_summary}</p>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 p-6 rounded-xl mb-8 border-l-4 border-blue-500">
+            <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">
+              Article Summary
+            </h3>
+            <p className="text-gray-700 dark:text-gray-300 text-lg leading-relaxed">
+              {content.content_summary}
+            </p>
           </div>
         )}
 
         {content.content_keywords && content.content_keywords.length > 0 && (
-          <div className="mb-6">
-            <div className="flex flex-wrap gap-2">
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-3">
               {content.content_keywords.map((keyword, index) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900 dark:to-indigo-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium hover:shadow-md transition-shadow"
                 >
                   {keyword}
                 </span>
@@ -212,17 +325,21 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
           </div>
         )}
 
-        {content.content_html ? (
-          <div
-            className="article-content"
-            dangerouslySetInnerHTML={{ 
-              __html: fixImageUrls(content.content_html, article.url) 
-            }}
-          />
-        ) : (
-          <div className="whitespace-pre-wrap">{content.full_content}</div>
-        )}
-      </div>
+        <div className="prose prose-xl prose-gray dark:prose-invert max-w-none">
+          {content.content_html ? (
+            <div
+              className="article-content text-lg leading-8 [&>p]:mb-6 [&>h1]:text-3xl [&>h1]:font-bold [&>h1]:mt-12 [&>h1]:mb-6 [&>h2]:text-2xl [&>h2]:font-semibold [&>h2]:mt-10 [&>h2]:mb-4 [&>h3]:text-xl [&>h3]:font-medium [&>h3]:mt-8 [&>h3]:mb-3 [&>blockquote]:border-l-4 [&>blockquote]:border-gray-300 [&>blockquote]:pl-6 [&>blockquote]:italic [&>blockquote]:my-6 [&>ul]:my-6 [&>ol]:my-6 [&>li]:mb-2 [&>img]:rounded-lg [&>img]:shadow-md [&>img]:my-8"
+              dangerouslySetInnerHTML={{ 
+                __html: fixImageUrls(processHtmlContent(content.content_html), article.url) 
+              }}
+            />
+          ) : (
+            <div className="formatted-content">
+              {formatTextContent(content.full_content)}
+            </div>
+          )}
+        </div>
+      </article>
     );
   };
 
@@ -282,6 +399,21 @@ const ArticleReader: React.FC<ArticleReaderProps> = ({ article, onClose }) => {
             >
               <ExternalLink className="w-5 h-5" />
             </button>
+            
+            {content?.full_content && (
+              <button
+                onClick={formatWithAI}
+                className="p-2 hover:bg-purple-50 hover:text-purple-600 rounded"
+                title="AI Format (GPT-4o-mini)"
+                disabled={formatting}
+              >
+                {formatting ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                ) : (
+                  <Sparkles className="w-5 h-5" />
+                )}
+              </button>
+            )}
             
             {content?.extraction_status === 'success' && (
               <button

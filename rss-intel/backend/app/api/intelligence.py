@@ -27,6 +27,7 @@ from ..intelligence import (
     similarity_detector, detect_similar_content,
     spam_detector
 )
+from ..intelligence.text_formatter import format_article_content
 
 router = APIRouter()
 
@@ -108,6 +109,44 @@ async def detect_trends_in_articles(
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Trend detection failed: {str(e)}")
+
+# Text Formatting Endpoints
+@router.post("/format/article/{article_id}")
+async def format_article_text(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """Format article content using AI for better readability."""
+    try:
+        article = db.query(Article).filter(Article.id == article_id).first()
+        
+        if not article:
+            raise HTTPException(status_code=404, detail="Article not found")
+        
+        # Use content or full_content, whichever is available
+        raw_content = article.content or getattr(article, 'full_content', '') or ''
+        
+        if not raw_content or len(raw_content.strip()) < 50:
+            raise HTTPException(status_code=400, detail="Article content too short to format")
+        
+        # Format using AI
+        formatted_html = await format_article_content(
+            raw_text=raw_content,
+            title=article.title
+        )
+        
+        return {
+            "article_id": article_id,
+            "title": article.title,
+            "original_length": len(raw_content),
+            "formatted_length": len(formatted_html),
+            "formatted_content": formatted_html,
+            "success": True,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Text formatting failed: {str(e)}")
 
 # Content Classification Endpoints
 @router.get("/classify/{article_id}")

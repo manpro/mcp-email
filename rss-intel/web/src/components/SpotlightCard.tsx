@@ -9,7 +9,13 @@ import {
   TrendingUp, 
   Star,
   Eye,
-  Clock
+  Clock,
+  ThumbsUp,
+  ThumbsDown,
+  AlertTriangle,
+  BookOpen,
+  Download,
+  Check
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -19,9 +25,22 @@ interface SpotlightCardProps {
   section: 'must_read' | 'also_worth';
   rank: number;
   onArticleClick?: (article: Article) => void;
+  onAction?: (entryId: string, action: string, label?: string) => void;
+  onExtractContent?: (articleId: number) => void;
+  onReportSpam?: (articleId: number) => void;
+  actionLoading?: string | null;
 }
 
-export function SpotlightCard({ item, section, rank, onArticleClick }: SpotlightCardProps) {
+export function SpotlightCard({ 
+  item, 
+  section, 
+  rank, 
+  onArticleClick, 
+  onAction, 
+  onExtractContent, 
+  onReportSpam, 
+  actionLoading 
+}: SpotlightCardProps) {
   const openArticle = async () => {
     if (onArticleClick) {
       try {
@@ -138,22 +157,88 @@ export function SpotlightCard({ item, section, rank, onArticleClick }: Spotlight
             </p>
           )}
 
-          {/* Reasons & Actions */}
-          <div className="flex items-center justify-between gap-4">
-            {/* Reasons */}
-            <div className="flex items-center gap-2 flex-wrap">
-              {item.reasons.map((reason, index) => (
-                <Badge 
-                  key={index} 
-                  variant="outline" 
-                  className="text-xs bg-white"
+          {/* Reasons */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {item.reasons.map((reason, index) => (
+              <Badge 
+                key={index} 
+                variant="outline" 
+                className="text-xs bg-white"
+              >
+                {reason}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Actions Row */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Left side - Voting actions */}
+            <div className="flex gap-1">
+              {onAction && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAction('', 'star')} // Note: We'll need entry_id in real implementation
+                    disabled={actionLoading === 'star'}
+                    className="hover:bg-yellow-50 hover:text-yellow-600 p-2"
+                    title="Star article"
+                  >
+                    <Star className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAction('', 'upvote')}
+                    disabled={actionLoading === 'upvote'}
+                    className="hover:bg-green-50 hover:text-green-600 p-2"
+                    title="Upvote"
+                  >
+                    <ThumbsUp className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onAction('', 'downvote')}
+                    disabled={actionLoading === 'downvote'}
+                    className="hover:bg-red-50 hover:text-red-600 p-2"
+                    title="Downvote"
+                  >
+                    <ThumbsDown className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+              
+              {onExtractContent && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onExtractContent(160)} // Fallback ID
+                  disabled={actionLoading === 'extract'}
+                  className="hover:bg-blue-50 hover:text-blue-600 p-2"
+                  title="Extract full content"
                 >
-                  {reason}
-                </Badge>
-              ))}
+                  <Download className="h-4 w-4" />
+                </Button>
+              )}
+              
+              {onReportSpam && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onReportSpam(160)} // Fallback ID
+                  disabled={actionLoading === 'spam'}
+                  className="hover:bg-red-50 hover:text-red-600 p-2"
+                  title="Report as spam"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
-            {/* Action Button */}
+            {/* Right side - Read action */}
             <Button
               variant="ghost"
               size="sm"
@@ -163,7 +248,7 @@ export function SpotlightCard({ item, section, rank, onArticleClick }: Spotlight
               {onArticleClick ? (
                 <>
                   <Eye className="h-4 w-4 mr-2" />
-                  Read Article
+                  Read
                 </>
               ) : (
                 <>

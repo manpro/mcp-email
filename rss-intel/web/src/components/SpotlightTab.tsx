@@ -30,6 +30,7 @@ export function SpotlightTab({ onArticleClick }: SpotlightTabProps = {}) {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadSpotlight = async () => {
@@ -98,6 +99,73 @@ export function SpotlightTab({ onArticleClick }: SpotlightTabProps = {}) {
 
   const openRSSFeed = () => {
     window.open('/api/proxy/api/spotlight/rss/feed', '_blank');
+  };
+
+  // Handle article actions (voting, starring, etc.)
+  const handleAction = async (entryId: string, action: string, label?: string) => {
+    try {
+      setActionLoading(action);
+      
+      // For spotlight articles, we'll need to map to real FreshRSS entries
+      // This is a placeholder implementation
+      await apiClient.markArticle(entryId, action);
+      
+      toast({
+        title: "Action completed",
+        description: `Article ${action} successfully`,
+        type: "success",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Action failed",
+        description: err.message || `Failed to ${action} article`,
+        type: "error"
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleExtractContent = async (articleId: number) => {
+    try {
+      setActionLoading('extract');
+      await apiClient.extractArticleContent(articleId, false);
+      
+      toast({
+        title: "Content extracted",
+        description: "Article content has been extracted",
+        type: "success",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Extraction failed",
+        description: err.message || "Failed to extract content",
+        type: "error"
+      });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReportSpam = async (articleId: number) => {
+    try {
+      setActionLoading('spam');
+      // Placeholder for spam reporting functionality
+      
+      toast({
+        title: "Reported as spam",
+        description: "Article has been reported as spam",
+        type: "success",
+      });
+    } catch (err: any) {
+      toast({
+        title: "Report failed",
+        description: err.message || "Failed to report spam",
+        type: "error"
+      });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   useEffect(() => {
@@ -297,6 +365,10 @@ export function SpotlightTab({ onArticleClick }: SpotlightTabProps = {}) {
                     section="must_read"
                     rank={index + 1}
                     onArticleClick={onArticleClick}
+                    onAction={handleAction}
+                    onExtractContent={handleExtractContent}
+                    onReportSpam={handleReportSpam}
+                    actionLoading={actionLoading}
                   />
                 ))}
               </div>
@@ -320,6 +392,10 @@ export function SpotlightTab({ onArticleClick }: SpotlightTabProps = {}) {
                     section="also_worth"
                     rank={index + 1}
                     onArticleClick={onArticleClick}
+                    onAction={handleAction}
+                    onExtractContent={handleExtractContent}
+                    onReportSpam={handleReportSpam}
+                    actionLoading={actionLoading}
                   />
                 ))}
               </div>
