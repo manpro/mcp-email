@@ -115,6 +115,8 @@ export const LoginPage: React.FC = () => {
                   type="text"
                   placeholder="Enter your username"
                   autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   {...form.register('username')}
                   className="bg-white/50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600"
                   disabled={isLoading}
