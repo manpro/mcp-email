@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "email": {
+      "command": "node",
+      "args": ["/home/micke/mcp-email/dist/index.js"],
+      "env": {}
+    }
+  }
+}

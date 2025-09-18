@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Email Server GUI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .connection-form {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4facfe;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 172, 254, 0.3);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .connections-list {
+            margin-top: 30px;
+        }
+
+        .connection-item {
+            background: white;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .connection-info h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .connection-info p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .email-actions {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .email-results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 6px;
+            padding: 15px;
+        }
+
+        .email-item {
+            border-bottom: 1px solid #e1e5e9;
+            padding: 15px 0;
+        }
+
+        .email-item:last-child {
+            border-bottom: none;
+        }
+
+        .email-subject {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .email-from {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .email-date {
+            color: #999;
+            font-size: 12px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .connection-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📧 MCP Email Server</h1>
+            <p>Anslut och hantera dina e-postkonton</p>
+        </div>
+
+        <div class="content">
+            <div class="connection-form">
+                <h3 style="margin-bottom: 20px;">Ny E-postanslutning</h3>
+                
+                <form id="connectionForm">
+                    <div class="form-group">
+                        <label for="connectionId">Anslutnings-ID:</label>
+                        <input type="text" id="connectionId" placeholder="t.ex. mitt-outlook" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">E-postadress:</label>
+                            <input type="email" id="email" placeholder="din.email@exempel.se" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Lösenord:</label>
+                            <input type="password" id="password" placeholder="Ditt lösenord" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="provider">Leverantör:</label>
+                            <select id="provider">
+                                <option value="">Automatisk detektion</option>
+                                <option value="outlook">Microsoft Outlook/Exchange</option>
+                                <option value="exchangeOnline">Microsoft Exchange Online</option>
+                                <option value="exchangeOnPremise">Microsoft Exchange On-Premise</option>
+                                <option value="gmail">Gmail</option>
+                                <option value="oneCom">One.com</option>
+                                <option value="generic">Generisk IMAP</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="customHost">Anpassad Host (valfri):</label>
+                            <input type="text" id="customHost" placeholder="imap.exempel.se">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="customPort">Anpassad Port (valfri):</label>
+                        <input type="number" id="customPort" placeholder="993">
+                    </div>
+
+                    <button type="button" onclick="testConnection()" class="btn" style="background: linear-gradient(135deg, #ffa726 0%, #ff8a65 100%);">Testa Anslutning</button>
+                    <button type="submit" class="btn">Anslut till E-post</button>
+                </form>
+            </div>
+
+            <div class="connections-list">
+                <h3 style="margin-bottom: 20px;">Aktiva Anslutningar</h3>
+                <div id="connectionsList">
+                    <p style="color: #666; text-align: center; padding: 20px;">Inga anslutningar än. Lägg till en ovan.</p>
+                </div>
+            </div>
+
+            <div class="email-actions">
+                <h3 style="margin-bottom: 20px;">E-postaktioner</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="activeConnection">Välj anslutning:</label>
+                        <select id="activeConnection">
+                            <option value="">Välj en anslutning...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="emailCount">Antal e-post:</label>
+                        <input type="number" id="emailCount" value="10" min="1" max="50">
+                    </div>
+                </div>
+
+                <button onclick="getRecentEmails()" class="btn">Hämta Senaste E-post</button>
+                <button onclick="listMailboxes()" class="btn">Lista Mappar</button>
+                
+                <div id="emailResults" class="email-results" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const connections = new Map();
+        const API_BASE = '/api';
+
+        document.getElementById('connectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await connectEmail();
+        });
+
+        async function testConnection() {
+            const email = document.getElementById('email').value;
+            const provider = document.getElementById('provider').value || undefined;
+            const customHost = document.getElementById('customHost').value || undefined;
+            const customPort = document.getElementById('customPort').value ? parseInt(document.getElementById('customPort').value) : undefined;
+
+            if (!email) {
+                showMessage('Ange en e-postadress för att testa', 'error');
+                return;
+            }
+
+            try {
+                showMessage('Testar anslutning...', 'loading');
+                
+                const response = await fetch(`${API_BASE}/test-connection`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, provider, customHost, customPort })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`✅ Anslutningstest lyckades! ${result.message}`, 'success');
+                    showEmailResults(`
+                        <h4>Anslutningstest Resultat:</h4>
+                        <div style="background: #d4edda; padding: 15px; border-radius: 6px; margin: 10px 0;">
+                            <strong>Framgångsrikt!</strong><br>
+                            Host: ${result.details.host}<br>
+                            Port: ${result.details.port}<br>
+                            TCP: ${result.details.tcpConnect ? '✅' : '❌'}<br>
+                            TLS: ${result.details.tlsConnect ? '✅' : '❌'}<br>
+                            ${result.details.imapResponse ? `IMAP Svar: ${result.details.imapResponse}` : ''}
+                        </div>
+                    `);
+                } else {
+                    let errorHtml = `
+                        <h4>Anslutningstest Resultat:</h4>
+                        <div style="background: #f8d7da; padding: 15px; border-radius: 6px; margin: 10px 0;">
+                            <strong>Misslyckades:</strong> ${result.message}<br>
+                            Host: ${result.details.host}<br>
+                            Port: ${result.details.port}<br>
+                            TCP: ${result.details.tcpConnect ? '✅' : '❌'}<br>
+                            TLS: ${result.details.tlsConnect ? '✅' : '❌'}<br>
+                        </div>
+                    `;
+                    
+                    if (result.suggestions && result.suggestions.length > 0) {
+                        errorHtml += `
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 6px; margin: 10px 0;">
+                                <strong>Förslag på alternativ:</strong><br>
+                                ${result.suggestions.map(s => `• ${s}`).join('<br>')}
+                            </div>
+                        `;
+                    }
+                    
+                    showEmailResults(errorHtml);
+                    showMessage(`❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Testfel: ${error.message}`, 'error');
+            }
+        }
+
+        async function connectEmail() {
+            const formData = {
+                connectionId: document.getElementById('connectionId').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                provider: document.getElementById('provider').value || undefined,
+                customHost: document.getElementById('customHost').value || undefined,
+                customPort: document.getElementById('customPort').value ? parseInt(document.getElementById('customPort').value) : undefined
+            };
+
+            try {
+                showMessage('Ansluter...', 'loading');
+                
+                const response = await fetch(`${API_BASE}/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    connections.set(formData.connectionId, {
+                        ...formData,
+                        connected: true,
+                        connectedAt: new Date()
+                    });
+                    
+                    updateConnectionsList();
+                    updateActiveConnectionSelect();
+                    showMessage(result.message, 'success');
+                    
+                    // Rensa formuläret
+                    document.getElementById('connectionForm').reset();
+                } else {
+                    showMessage(`Fel: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Anslutningsfel: ${error.message}`, 'error');
+            }
+        }
+
+        async function disconnectEmail(connectionId) {
+            try {
+                const response = await fetch(`${API_BASE}/disconnect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connectionId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    connections.delete(connectionId);
+                    updateConnectionsList();
+                    updateActiveConnectionSelect();
+                    showMessage(result.message, 'success');
+                } else {
+                    showMessage(`Fel: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showMessage(`Frånkopplingsfel: ${error.message}`, 'error');
+            }
+        }
+
+        async function getRecentEmails() {
+            const connectionId = document.getElementById('activeConnection').value;
+            const count = parseInt(document.getElementById('emailCount').value) || 10;
+
+            if (!connectionId) {
+                showMessage('Välj en anslutning först', 'error');
+                return;
+            }
+
+            try {
+                showEmailResults('<div class="loading">Hämtar e-post...</div>');
+                
+                const response = await fetch(`${API_BASE}/recent-emails`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connectionId, count })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayEmails(result.emails);
+                } else {
+                    showEmailResults(`<div class="error">Fel: ${result.error}</div>`);
+                }
+            } catch (error) {
+                showEmailResults(`<div class="error">Fel: ${error.message}</div>`);
+            }
+        }
+
+        async function listMailboxes() {
+            const connectionId = document.getElementById('activeConnection').value;
+
+            if (!connectionId) {
+                showMessage('Välj en anslutning först', 'error');
+                return;
+            }
+
+            try {
+                showEmailResults('<div class="loading">Hämtar mappar...</div>');
+                
+                const response = await fetch(`${API_BASE}/mailboxes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connectionId })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    const mailboxHtml = `
+                        <h4>Tillgängliga mappar:</h4>
+                        <pre style="background: #f8f9fa; padding: 15px; border-radius: 6px; overflow-x: auto;">${JSON.stringify(result.mailboxes, null, 2)}</pre>
+                    `;
+                    showEmailResults(mailboxHtml);
+                } else {
+                    showEmailResults(`<div class="error">Fel: ${result.error}</div>`);
+                }
+            } catch (error) {
+                showEmailResults(`<div class="error">Fel: ${error.message}</div>`);
+            }
+        }
+
+        function displayEmails(emails) {
+            if (!emails || emails.length === 0) {
+                showEmailResults('<div style="text-align: center; padding: 20px; color: #666;">Inga e-post hittades</div>');
+                return;
+            }
+
+            const emailsHtml = emails.map(email => `
+                <div class="email-item">
+                    <div class="email-subject">${escapeHtml(email.subject || 'Inget ämne')}</div>
+                    <div class="email-from">Från: ${escapeHtml(email.from || 'Okänd avsändare')}</div>
+                    <div class="email-date">${new Date(email.date).toLocaleString('sv-SE')}</div>
+                    ${email.bodyPreview ? `<div style="margin-top: 10px; color: #666; font-size: 14px;">${escapeHtml(email.bodyPreview)}</div>` : ''}
+                </div>
+            `).join('');
+
+            showEmailResults(`<h4>Senaste e-post (${emails.length} st):</h4>${emailsHtml}`);
+        }
+
+        function updateConnectionsList() {
+            const container = document.getElementById('connectionsList');
+            
+            if (connections.size === 0) {
+                container.innerHTML = '<p style="color: #666; text-align: center; padding: 20px;">Inga anslutningar än. Lägg till en ovan.</p>';
+                return;
+            }
+
+            const connectionsHtml = Array.from(connections.entries()).map(([id, conn]) => `
+                <div class="connection-item">
+                    <div class="connection-info">
+                        <h4>${escapeHtml(conn.email)}</h4>
+                        <p>ID: ${escapeHtml(id)} | Leverantör: ${escapeHtml(conn.provider || 'Automatisk')}</p>
+                        ${conn.connectedAt ? `<p>Ansluten: ${conn.connectedAt.toLocaleString('sv-SE')}</p>` : ''}
+                    </div>
+                    <div>
+                        <span class="status ${conn.connected ? 'connected' : 'disconnected'}">
+                            ${conn.connected ? 'Ansluten' : 'Frånkopplad'}
+                        </span>
+                        ${conn.connected ? `<button onclick="disconnectEmail('${id}')" class="btn btn-danger" style="margin-left: 10px;">Koppla från</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            container.innerHTML = connectionsHtml;
+        }
+
+        function updateActiveConnectionSelect() {
+            const select = document.getElementById('activeConnection');
+            select.innerHTML = '<option value="">Välj en anslutning...</option>';
+            
+            connections.forEach((conn, id) => {
+                if (conn.connected) {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = `${conn.email} (${id})`;
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        function showMessage(message, type) {
+            const existing = document.querySelector('.message');
+            if (existing) existing.remove();
+
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = message;
+            
+            const form = document.querySelector('.connection-form');
+            form.appendChild(div);
+            
+            if (type !== 'loading') {
+                setTimeout(() => div.remove(), 5000);
+            }
+        }
+
+        function showEmailResults(html) {
+            const container = document.getElementById('emailResults');
+            container.innerHTML = html;
+            container.style.display = 'block';
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
