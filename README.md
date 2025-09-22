@@ -69,6 +69,29 @@ Koppla från ett e-postkonto.
 #### 7. `list_providers`
 Lista tillgängliga e-postleverantörer.
 
+#### 8. `check_ai_status`
+Kontrollera om GPT-OSS 20B AI-tjänsten är tillgänglig för e-postanalys.
+
+**Returnerar:**
+- Status på AI-tjänsten (available/bridge_down/timeout/model_unavailable/error)
+- Detaljerat meddelande om tjänstens tillstånd
+- Förslag på åtgärder vid fel
+
+#### 9. `analyze_email_with_ai`
+Analysera e-postinnehåll med GPT-OSS 20B AI för intelligent kategorisering och insikter.
+
+**Parametrar:**
+- `connectionId` (obligatorisk): Anslutnings-ID
+- `mailbox` (valfri): Mappnamn (standard: INBOX)
+- `uid` (obligatorisk): E-post UID att analysera
+
+**AI-analys inkluderar:**
+- Kategori (work/personal/newsletter/spam/notification/urgent)
+- Prioritet (high/medium/low)
+- Sammanfattning (max 50 ord)
+- Föreslagen åtgärd (respond/archive/read-later/delete/forward)
+- Viktig information extraherad
+
 ## Stödda E-postleverantörer
 
 ### Microsoft Outlook/Exchange Online
@@ -173,11 +196,61 @@ Vanliga sökkriterier:
 - `["SINCE", "1-Jan-2024"]` - Sedan specifikt datum
 - `["BEFORE", "31-Dec-2023"]` - Före specifikt datum
 
+## AI-integration med GPT-OSS 20B
+
+MCP Email Server har inbyggd integration med GPT-OSS 20B för intelligent e-postanalys. AI-tjänsten körs lokalt via ROCm-AI-Stack.
+
+### AI-funktioner
+
+- **Intelligent kategorisering**: Automatisk klassificering av e-post (arbete, personligt, nyhetsbrev, spam, etc.)
+- **Prioritetsanalys**: Bedömning av e-postens viktighet (hög/medel/låg)
+- **Sammanfattning**: Kortfattad beskrivning av e-postens innehåll
+- **Åtgärdsrekommendationer**: Förslag på lämplig hantering (svara, arkivera, radera, etc.)
+- **Informationsextraktion**: Identifiering av viktig information och nyckeldata
+
+### Robust felhantering
+
+AI-integrationen har omfattande felhantering för att säkerställa tillförlitlig drift:
+
+- **Health checks**: Kontrollerar AI-tjänstens tillgänglighet innan analys
+- **Timeout-hantering**: 30 sekunders timeout för AI-anrop med tydlig feedback
+- **Detaljerade felmeddelanden**: Specifika felkoder och förslag på lösningar
+- **Service-status**: Realtidsövervakning av AI-tjänstens tillstånd
+
+### Exempel på AI-användning
+
+#### Kontrollera AI-status
+```json
+{
+  "tool": "check_ai_status",
+  "arguments": {}
+}
+```
+
+#### Analysera e-post med AI
+```json
+{
+  "tool": "analyze_email_with_ai",
+  "arguments": {
+    "connectionId": "outlook1",
+    "uid": 12345
+  }
+}
+```
+
+### AI-konfiguration
+
+AI-tjänsten använder GPT-OSS 20B via OpenAI Bridge på port 8085. Säkerställ att följande tjänster körs:
+- Ollama (port 8080)
+- OpenAI Bridge (port 8085)
+- GPT-OSS 20B modell laddad i Ollama
+
 ## Säkerhet
 
 - Lösenord skickas över säkra TLS-anslutningar
 - Stöd för app-lösenord (rekommenderas för Gmail och Microsoft)
 - Automatisk hantering av TLS-certifikat
+- AI-analyser körs lokalt - ingen data skickas till externa tjänster
 
 ## Utveckling
 
