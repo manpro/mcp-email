@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kompakt Smart Filter Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f9fafb;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+
+        /* KOMPAKT FILTER LAYOUT - MAX 2 RADER */
+        .compact-smart-filters {
+            background: #ffffff;
+            border-bottom: 2px solid #e5e7eb;
+            padding: 8px 16px;
+        }
+
+        .filter-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            height: 32px;
+        }
+
+        .filter-row-2 {
+            margin-top: 4px;
+        }
+
+        /* Huvuddropdown */
+        .main-filter {
+            position: relative;
+        }
+
+        .dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 0 12px;
+            height: 32px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+        }
+
+        .dropdown-btn:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .dropdown-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .dropdown-arrow {
+            margin-left: 4px;
+            font-size: 10px;
+            opacity: 0.6;
+        }
+
+        /* Snabbknappar */
+        .quick-filter {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 10px;
+            height: 32px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .quick-filter:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+            color: #374151;
+        }
+
+        .quick-filter.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .plus-icon {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        /* Oläst badge */
+        .unread-badge {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            height: 24px;
+            padding: 0 7px;
+            background: #ef4444;
+            color: white;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        /* Andra raden knappar */
+        .action-btn {
+            padding: 0 12px;
+            height: 28px;
+            background: transparent;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #6b7280;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+            color: #374151;
+        }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Aktiva filter chips */
+        .active-filters {
+            display: flex;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .filter-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 8px;
+            height: 26px;
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 13px;
+            font-size: 12px;
+            color: #2563eb;
+        }
+
+        .filter-chip .remove {
+            margin-left: 2px;
+            font-size: 14px;
+            cursor: pointer;
+            opacity: 0.6;
+        }
+
+        .filter-chip .remove:hover {
+            opacity: 1;
+        }
+
+        /* Dropdown menu */
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 220px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background: #f9fafb;
+        }
+
+        .dropdown-item.selected {
+            background: #eff6ff;
+            color: #2563eb;
+        }
+
+        .dropdown-item .icon {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+        }
+
+        .dropdown-item .check {
+            margin-left: auto;
+            color: #10b981;
+            font-weight: bold;
+        }
+
+        /* Email lista (för kontext) */
+        .email-list {
+            padding: 20px;
+            min-height: 400px;
+            background: #fafafa;
+        }
+
+        .email-item {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .email-item:hover {
+            border-color: #9ca3af;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .description {
+            margin-bottom: 30px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kompakt Smart Filter - Version 2: Dropdown med snabbval</h1>
+    <p class="description">
+        Max 2 rader layout med dropdown för huvudfilter och snabbknappar för vanliga filter.
+        Total höjd: 64px (2 x 32px rader).
+    </p>
+
+    <div class="demo-container">
+        <!-- KOMPAKT FILTER KOMPONENT -->
+        <div class="compact-smart-filters">
+            <!-- Rad 1: Huvudfunktioner -->
+            <div class="filter-row">
+                <!-- Huvuddropdown -->
+                <div class="main-filter">
+                    <button class="dropdown-btn" onclick="toggleDropdown(event)">
+                        <span class="dropdown-arrow">▼</span>
+                        <span>Smarta filter:</span>
+                        <span style="margin: 0 4px;">📰</span>
+                        <span style="font-weight: 600;">Nyheter</span>
+                    </button>
+
+                    <div class="dropdown-menu" id="filterDropdown">
+                        <div class="dropdown-item selected">
+                            <span class="icon">📰</span>
+                            <span>Nyheter</span>
+                            <span class="check">✓</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">💼</span>
+                            <span>Arbete</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">⭐</span>
+                            <span>Viktigt</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">📊</span>
+                            <span>Fakturor</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">🛍️</span>
+                            <span>Erbjudanden</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">🗓️</span>
+                            <span>Möten</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">👤</span>
+                            <span>Personligt</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">📦</span>
+                            <span>Leveranser</span>
+                        </div>
+                        <div class="dropdown-item">
+                            <span class="icon">🗑️</span>
+                            <span>Spam</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Snabbknappar -->
+                <button class="quick-filter" onclick="toggleFilter(this)">
+                    <span class="plus-icon">+</span>
+                    <span>Arbete</span>
+                </button>
+
+                <button class="quick-filter active" onclick="toggleFilter(this)">
+                    <span class="plus-icon">+</span>
+                    <span>Viktigt</span>
+                </button>
+
+                <button class="quick-filter" onclick="toggleFilter(this)">
+                    <span class="plus-icon">+</span>
+                    <span>Oläst</span>
+                </button>
+
+                <!-- Oläst räknare -->
+                <div class="unread-badge">23</div>
+            </div>
+
+            <!-- Rad 2: Sekundära funktioner -->
+            <div class="filter-row filter-row-2">
+                <button class="action-btn">Anpassa filter...</button>
+                <button class="action-btn" onclick="clearAll()">Rensa alla</button>
+
+                <!-- Aktiva filter chips -->
+                <div class="active-filters">
+                    <div class="filter-chip">
+                        <span>📰</span>
+                        <span>Nyheter</span>
+                        <span class="remove" onclick="removeChip(this)">×</span>
+                    </div>
+                    <div class="filter-chip">
+                        <span>⭐</span>
+                        <span>Viktigt</span>
+                        <span class="remove" onclick="removeChip(this)">×</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Email lista -->
+        <div class="email-list">
+            <div class="email-item">
+                <strong>DN.se</strong> - Dagens nyheter och analyser
+            </div>
+            <div class="email-item">
+                <strong>Projektmöte</strong> - Viktigt: Deadline imorgon kl 14:00
+            </div>
+            <div class="email-item">
+                <strong>LinkedIn</strong> - Nya jobbmöjligheter inom IT
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleDropdown(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('filterDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function toggleFilter(button) {
+            button.classList.toggle('active');
+            updateActiveFilters();
+        }
+
+        function removeChip(element) {
+            element.parentElement.remove();
+        }
+
+        function clearAll() {
+            document.querySelectorAll('.quick-filter').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.remove();
+            });
+        }
+
+        function updateActiveFilters() {
+            // Här skulle vi uppdatera aktiva filter chips
+            console.log('Updating active filters...');
+        }
+
+        // Stäng dropdown när man klickar utanför
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('filterDropdown');
+            if (!event.target.closest('.main-filter')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Hantera val i dropdown
+        document.querySelectorAll('.dropdown-item').forEach(item => {
+            item.addEventListener('click', function() {
+                // Toggle selected state
+                this.classList.toggle('selected');
+
+                // Update check mark
+                let check = this.querySelector('.check');
+                if (this.classList.contains('selected')) {
+                    if (!check) {
+                        check = document.createElement('span');
+                        check.className = 'check';
+                        check.textContent = '✓';
+                        this.appendChild(check);
+                    }
+                } else if (check) {
+                    check.remove();
+                }
+
+                updateActiveFilters();
+            });
+        });
+    </script>
+</body>
+</html>

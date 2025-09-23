@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="aiGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="250" fill="url(#bgGradient)"/>
+
+  <!-- Email Envelope -->
+  <g transform="translate(256, 256)">
+    <!-- Envelope Body -->
+    <rect x="-140" y="-80" width="280" height="180" rx="15" fill="white" opacity="0.95"/>
+
+    <!-- Envelope Flap -->
+    <path d="M -140 -80 L 0 20 L 140 -80" fill="white" opacity="0.85"/>
+
+    <!-- AI Brain Icon (small, top-right) -->
+    <circle cx="100" cy="-40" r="30" fill="url(#aiGradient)"/>
+    <path d="M 85 -45 Q 90 -50 95 -45 T 105 -45 T 115 -45"
+          stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M 85 -35 Q 90 -40 95 -35 T 105 -35 T 115 -35"
+          stroke="white" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+    <!-- Sparkles -->
+    <g fill="#fbbf24">
+      <circle cx="120" cy="-60" r="3" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="130" cy="-30" r="2" opacity="0.6">
+        <animate attributeName="opacity" values="0.6;0.2;0.6" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+      </circle>
+      <circle cx="110" cy="-15" r="2.5" opacity="0.7">
+        <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" begin="1s" repeatCount="indefinite"/>
+      </circle>
+    </g>
+  </g>
+</svg>

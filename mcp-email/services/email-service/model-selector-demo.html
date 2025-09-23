@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Model Selector Demo</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f6f8fa;
+    }
+
+    .model-selector {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .model-selector-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #e1e4e8;
+    }
+
+    .model-selector-header h3 {
+      margin: 0;
+      font-size: 24px;
+      color: #333;
+    }
+
+    .refresh-btn {
+      padding: 8px 16px;
+      background: #0366d6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s;
+    }
+
+    .refresh-btn:hover:not(:disabled) {
+      background: #0256c7;
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      background: #fef2f2;
+      color: #dc2626;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      border: 1px solid #fecaca;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .models-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 20px;
+    }
+
+    .model-card {
+      background: white;
+      border: 2px solid #e1e4e8;
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .model-card.selected {
+      border-color: #0366d6;
+      box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+    }
+
+    .model-card.enabled {
+      background: white;
+    }
+
+    .model-card.disabled {
+      background: #f6f8fa;
+      opacity: 0.8;
+    }
+
+    .model-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .model-header h4 {
+      margin: 0;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-badge.active {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-badge.inactive {
+      background: #f8f9fa;
+      color: #6c757d;
+    }
+
+    .model-details {
+      margin-bottom: 15px;
+    }
+
+    .model-details p {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #586069;
+    }
+
+    .model-details strong {
+      color: #333;
+      margin-right: 5px;
+    }
+
+    .model-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .switch-btn,
+    .test-btn {
+      flex: 1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .switch-btn {
+      background: #28a745;
+      color: white;
+    }
+
+    .switch-btn:hover:not(:disabled) {
+      background: #218838;
+    }
+
+    .switch-btn:disabled {
+      background: #6c757d;
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .test-btn {
+      background: #17a2b8;
+      color: white;
+    }
+
+    .test-btn:hover:not(:disabled) {
+      background: #138496;
+    }
+
+    .test-btn:disabled {
+      background: #6c757d;
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .model-selector-footer {
+      margin-top: 30px;
+      padding: 15px;
+      background: #f6f8fa;
+      border-radius: 6px;
+      border: 1px solid #e1e4e8;
+    }
+
+    .model-selector-footer p {
+      margin: 0;
+      color: #586069;
+      font-size: 14px;
+    }
+
+    .model-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 6px;
+      color: white;
+      font-weight: 500;
+      z-index: 10000;
+      animation: slideIn 0.3s ease;
+    }
+
+    .model-notification.success {
+      background: #28a745;
+    }
+
+    .model-notification.error {
+      background: #dc3545;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .models-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .model-selector-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+      }
+
+      .refresh-btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const ModelSelector = ({ apiUrl = 'http://localhost:3016' }) => {
+      const [models, setModels] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [selectedModel, setSelectedModel] = useState(null);
+
+      // Fetch available models
+      const fetchModels = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`${apiUrl}/api/models`);
+          const data = await response.json();
+          setModels(data.providers);
+
+          // Find the currently active model
+          const activeModel = data.providers.find(m => m.isActive && m.priority === 1);
+          if (activeModel) {
+            setSelectedModel(activeModel.id);
+          }
+        } catch (err) {
+          setError('Failed to load models');
+          console.error('Error fetching models:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchModels();
+      }, []);
+
+      // Switch model
+      const handleModelSwitch = async (modelId) => {
+        try {
+          setLoading(true);
+
+          // First disable all other models
+          for (const model of models) {
+            if (model.id !== modelId && model.enabled) {
+              await fetch(`${apiUrl}/api/models/switch`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ modelId: model.id, enabled: false })
+              });
+            }
+          }
+
+          // Then enable the selected model with highest priority
+          await fetch(`${apiUrl}/api/models/switch`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modelId, enabled: true })
+          });
+
+          await fetch(`${apiUrl}/api/models/priority`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modelId, priority: 1 })
+          });
+
+          setSelectedModel(modelId);
+          await fetchModels(); // Refresh the list
+
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.className = 'model-notification success';
+          notification.textContent = `Switched to ${models.find(m => m.id === modelId)?.name}`;
+          document.body.appendChild(notification);
+
+          setTimeout(() => {
+            notification.remove();
+          }, 3000);
+
+        } catch (err) {
+          setError('Failed to switch model');
+          console.error('Error switching model:', err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // Test model connectivity
+      const testModel = async (modelId) => {
+        try {
+          const testEmail = {
+            from: 'test@example.com',
+            subject: 'Test Email for Model Verification',
+            text: 'This is a test email to verify the AI model is working correctly.'
+          };
+
+          const response = await fetch(`${apiUrl}/api/categorize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testEmail)
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            alert(`Model Test Successful!\n\nCategory: ${result.category}\nPriority: ${result.priority}\nProvider: ${result.provider || 'Unknown'}`);
+          } else {
+            alert('Model test failed');
+          }
+        } catch (err) {
+          alert('Error testing model: ' + err.message);
+        }
+      };
+
+      return (
+        <div className="model-selector">
+          <div className="model-selector-header">
+            <h3>🤖 AI Model Selection</h3>
+            <button onClick={fetchModels} className="refresh-btn" disabled={loading}>
+              🔄 Refresh
+            </button>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          {loading ? (
+            <div className="loading">Loading models...</div>
+          ) : (
+            <div className="models-grid">
+              {models.map(model => (
+                <div
+                  key={model.id}
+                  className={`model-card ${model.id === selectedModel ? 'selected' : ''} ${model.enabled ? 'enabled' : 'disabled'}`}
+                >
+                  <div className="model-header">
+                    <h4>{model.name}</h4>
+                    <span className={`status-badge ${model.isActive ? 'active' : 'inactive'}`}>
+                      {model.isActive ? '✅ Active' : '⭕ Inactive'}
+                    </span>
+                  </div>
+
+                  <div className="model-details">
+                    <p><strong>Model:</strong> {model.model}</p>
+                    <p><strong>URL:</strong> {model.url}</p>
+                    <p><strong>Priority:</strong> {model.priority}</p>
+                    <p><strong>Status:</strong> {model.enabled ? 'Enabled' : 'Disabled'}</p>
+                  </div>
+
+                  <div className="model-actions">
+                    <button
+                      onClick={() => handleModelSwitch(model.id)}
+                      disabled={loading || model.id === selectedModel}
+                      className="switch-btn"
+                    >
+                      {model.id === selectedModel ? '✓ Selected' : 'Select'}
+                    </button>
+                    <button
+                      onClick={() => testModel(model.id)}
+                      disabled={loading || !model.enabled}
+                      className="test-btn"
+                    >
+                      Test
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="model-selector-footer">
+            <p>💡 Tip: Switching models will clear the cache to ensure new categorizations use the selected model.</p>
+          </div>
+        </div>
+      );
+    };
+
+    // Render the component
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<ModelSelector />);
+  </script>
+</body>
+</html>

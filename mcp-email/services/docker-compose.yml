@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  email-backend:
+    build: ./email-service
+    container_name: mcp-email-backend
+    ports:
+      - "3015:3015"
+    environment:
+      - PORT=3015
+      - REDIS_HOST=172.17.0.1
+      - REDIS_PORT=6381
+      - LLM_CONFIG=./llm-config.json
+      - DATABASE_PATH=/app/data/email_cache.db
+      - MCP_GUI_HOST=172.16.16.148
+    volumes:
+      - email-data:/app/data
+      - ./email-service/llm-config.json:/app/llm-config.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3015/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  email-frontend:
+    build: ./frontend
+    container_name: mcp-email-frontend
+    ports:
+      - "3623:3623"
+    environment:
+      - VITE_API_URL=http://172.16.16.148:3015
+      - VITE_EMAIL_API_URL=http://172.16.16.148:3015
+    depends_on:
+      - email-backend
+    restart: unless-stopped
+
+volumes:
+  email-data:
+    driver: local

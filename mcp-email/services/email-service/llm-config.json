@@ -1,0 +1,55 @@
+{
+  "providers": {
+    "gpt-oss": {
+      "name": "GPT-OSS 20B",
+      "url": "http://localhost:8085",
+      "model": "gpt-oss:20b",
+      "endpoint": "/v1/chat/completions",
+      "temperature": 0.3,
+      "max_tokens": 250,
+      "enabled": true,
+      "priority": 2
+    },
+    "qwen": {
+      "name": "Qwen 2.5 7B",
+      "url": "http://mini:1234",
+      "model": "qwen2.5-7b-instruct-1m",
+      "endpoint": "/v1/chat/completions",
+      "temperature": 0.3,
+      "max_tokens": 250,
+      "enabled": true,
+      "priority": 1
+    },
+    "deepseek": {
+      "name": "DeepSeek R1",
+      "url": "http://mini:1234",
+      "model": "deepseek-r1-distill-qwen-7b",
+      "endpoint": "/v1/chat/completions",
+      "temperature": 0.3,
+      "max_tokens": 300,
+      "enabled": false,
+      "priority": 2
+    },
+    "ollama": {
+      "name": "Ollama Local",
+      "url": "http://localhost:11434",
+      "model": "mistral",
+      "endpoint": "/api/chat",
+      "temperature": 0.3,
+      "max_tokens": 200,
+      "enabled": false,
+      "priority": 3,
+      "format": "ollama"
+    }
+  },
+  "default": "mistral",
+  "fallback": {
+    "enabled": true,
+    "maxRetries": 2,
+    "retryDelay": 1000
+  },
+  "ruleBasedFallback": {
+    "enabled": true,
+    "useWhenAllFail": true
+  }
+}

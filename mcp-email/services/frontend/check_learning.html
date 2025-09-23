@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Learning Data</title>
+</head>
+<body>
+    <h1>Learning Service Data Check</h1>
+    <div id="output"></div>
+    <script>
+        const output = document.getElementById('output');
+        
+        // Check userActions
+        const userActions = JSON.parse(localStorage.getItem('userActions') || '[]');
+        const categoryActions = userActions.filter(a => a.action === 'categorize');
+        
+        output.innerHTML = `
+            <h2>Category Learning Data:</h2>
+            <p><strong>Total user actions stored:</strong> ${userActions.length}</p>
+            <p><strong>Category change actions:</strong> ${categoryActions.length}</p>
+            
+            <h3>Recent Category Changes:</h3>
+            <ul>
+            ${categoryActions.slice(-10).map(action => `
+                <li>
+                    <strong>Time:</strong> ${new Date(action.timestamp).toLocaleString()}<br>
+                    <strong>From:</strong> ${action.context.oldCategory || 'unknown'}<br>
+                    <strong>To:</strong> ${action.context.newCategory}<br>
+                    <strong>Manual correction:</strong> ${action.context.userCorrection ? 'Yes' : 'No'}<br>
+                    ${action.emailSignature ? `<strong>Email domain:</strong> ${action.emailSignature.domain || 'N/A'}` : ''}
+                </li>
+            `).join('')}
+            </ul>
+            
+            <h3>Custom Categories:</h3>
+            <p>${localStorage.getItem('customEmailCategories') || 'None saved'}</p>
+            
+            <h3>Category Patterns Learned:</h3>
+            <p>${localStorage.getItem('categoryPatterns') || 'No patterns saved yet'}</p>
+        `;
+        
+        // Also log to console for debugging
+        console.log('All userActions:', userActions);
+        console.log('Category actions:', categoryActions);
+    </script>
+</body>
+</html>
