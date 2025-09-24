@@ -13,12 +13,17 @@ import axios from 'axios';
 
 // Get the API URL from environment variable, with fallback
 // In production, this should point to your actual backend server
-// Using localhost:3015 for the refactored email service
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://172.16.16.148:3015';
+// For browser access, use empty string to rely on Vite proxy
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+
+// BROWSER FIX: If we're in browser and have Docker backend URL, use empty string for proxy
+const isDevelopment = import.meta.env.DEV;
+const isDockerBackendUrl = API_BASE_URL && API_BASE_URL.includes('email-backend');
+const RESOLVED_API_BASE_URL = (isDevelopment && isDockerBackendUrl) ? '' : API_BASE_URL;
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: RESOLVED_API_BASE_URL,
   timeout: 30000, // 30 seconds timeout
   headers: {
     'Content-Type': 'application/json',
@@ -94,7 +99,7 @@ axiosInstance.interceptors.response.use(
         console.error('1. Backend server is not running');
         console.error('2. CORS is blocking the request');
         console.error('3. Wrong URL or port');
-        console.error(`4. Check if backend is accessible at: ${API_BASE_URL}`);
+        console.error(`4. Check if backend is accessible at: ${RESOLVED_API_BASE_URL}`);
       }
     } else {
       // Error in request configuration
@@ -112,7 +117,7 @@ export { API_BASE_URL };
 // Helper function to test API connection
 export const testAPIConnection = async () => {
   try {
-    console.log(`Testing API connection to: ${API_BASE_URL}`);
+    console.log(`Testing API connection to: ${RESOLVED_API_BASE_URL}`);
     const response = await axiosInstance.get('/health');
     console.log('API connection successful:', response.data);
     return true;
