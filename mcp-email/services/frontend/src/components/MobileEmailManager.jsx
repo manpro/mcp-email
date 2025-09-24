@@ -88,7 +88,7 @@ export default function MobileEmailManager() {
         console.error('Failed to load emails:', err)
       })
     }
-  }, [selectedAccountId, loadEmails])
+  }, [selectedAccountId])
 
   useEffect(() => {
     // Filter emails based on search and active tab

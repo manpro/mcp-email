@@ -17,7 +17,7 @@ const useEmailStore = create((set, get) => ({
   accounts: [],
 
   // API Configuration
-  apiBaseUrl: import.meta.env.VITE_EMAIL_API_URL || 'http://172.16.16.148:3012',
+  apiBaseUrl: '/api', // Use Vite proxy configuration
   userId: 'default', // This would come from authentication
 
   // Actions
@@ -75,7 +75,7 @@ const useEmailStore = create((set, get) => ({
     }
 
     try {
-      const url = `${apiBaseUrl}/recent-emails/${selectedAccountId}?limit=100`
+      const url = `${apiBaseUrl}/recent-emails/${selectedAccountId}?limit=500`
       console.log('Fetching emails from:', url)
 
       const response = await fetch(url, {
@@ -165,7 +165,7 @@ const useEmailStore = create((set, get) => ({
     }
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/categories/stats/${selectedAccountId}?limit=100`, {
+      const response = await fetch(`${apiBaseUrl}/api/categories/stats/${selectedAccountId}?limit=500`, {
         headers: {
           'x-user-id': userId
         }

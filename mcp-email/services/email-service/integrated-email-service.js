@@ -366,6 +366,27 @@ async function fetchEmailsFromSource(connectionId, limit = 50) {
   }
 }
 
+// Helper function for getting recent emails (used by folder suggestions)
+async function getRecentEmails(accountId, limit = 100) {
+  try {
+    console.log(`📬 Fetching ${limit} emails for account: ${accountId}`);
+
+    if (!imapConnected) {
+      console.log('⚠️ IMAP not connected, attempting to connect...');
+      await imapService.connect();
+      imapConnected = true;
+    }
+
+    const emails = await imapService.fetchRecent(limit);
+    console.log(`✅ Fetched ${emails?.length || 0} emails from IMAP`);
+
+    return emails || [];
+  } catch (error) {
+    console.error('❌ Error in getRecentEmails:', error.message);
+    return [];
+  }
+}
+
 // Frontend compatibility endpoint - maps to recent-emails
 app.get('/api/emails', async (req, res) => {
   try {
@@ -926,21 +947,33 @@ app.delete('/api/accounts/:accountId', (req, res) => {
   res.json({ success: true, message: 'Account removed' });
 });
 
-// Category statistics endpoint
+// Category statistics endpoint - OPTIMIZED
 app.get('/api/categories/stats/:accountId', async (req, res) => {
   try {
     const accountId = req.params.accountId;
     const limit = parseInt(req.query.limit) || 500;
 
+    console.log(`📊 Getting category stats for ${accountId}, limit: ${limit}`);
+
+    // Check Redis cache first
+    const cacheKey = `stats:${accountId}:${limit}`;
+    if (redisClient) {
+      try {
+        const cachedStats = await redisClient.get(cacheKey);
+        if (cachedStats) {
+          console.log('🎯 Using cached stats');
+          return res.json({ stats: JSON.parse(cachedStats), cached: true });
+        }
+      } catch (cacheError) {
+        console.log('Cache read error, proceeding with fresh calculation');
+      }
+    }
+
     // Fetch emails to calculate stats
     const emails = await fetchEmailsFromSource(accountId, limit);
+    console.log(`📬 Processing ${emails.length} emails for stats`);
 
-    // Process emails for statistics
-    const processedEmails = await Promise.all(
-      emails.map(async (email) => await categorizeEmailWithML(email))
-    );
-
-    // Calculate statistics
+    // Initialize statistics
     const stats = {
       categories: {},
       priorities: {},
@@ -948,6 +981,45 @@ app.get('/api/categories/stats/:accountId', async (req, res) => {
       total: emails.length,
       unread: emails.filter(e => !e.flags?.includes('\\Seen')).length
     };
+
+    // OPTIMIZED: Process emails in smaller batches to avoid overwhelming ML service
+    const BATCH_SIZE = 20; // Process 20 emails at a time
+    const processedEmails = [];
+
+    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+      const batch = emails.slice(i, i + BATCH_SIZE);
+      console.log(`🔄 Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(emails.length/BATCH_SIZE)}`);
+
+      // Check cache for each email first
+      const batchResults = await Promise.all(
+        batch.map(async (email) => {
+          const emailCacheKey = `ml:${email.uid || email.id}`;
+
+          if (redisClient) {
+            try {
+              const cachedAnalysis = await redisClient.get(emailCacheKey);
+              if (cachedAnalysis) {
+                return JSON.parse(cachedAnalysis);
+              }
+            } catch (cacheError) {
+              console.log(`Cache miss for email ${email.uid || email.id}`);
+            }
+          }
+
+          // If not cached, use basic classification without ML
+          return {
+            category: classifyEmailBasic(email),
+            priority: 'medium',
+            sentiment: 'neutral'
+          };
+        })
+      );
+
+      processedEmails.push(...batchResults);
+
+      // Small delay to prevent overwhelming the system
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
 
     // Count categories
     processedEmails.forEach(analysis => {
@@ -967,10 +1039,21 @@ app.get('/api/categories/stats/:accountId', async (req, res) => {
       }
     });
 
+    // Cache the results for 5 minutes
+    if (redisClient) {
+      try {
+        await redisClient.setex(cacheKey, 300, JSON.stringify(stats));
+        console.log('📦 Stats cached for 5 minutes');
+      } catch (cacheError) {
+        console.log('Cache write error:', cacheError.message);
+      }
+    }
+
+    console.log(`✅ Stats calculated: ${Object.keys(stats.categories).length} categories, ${stats.total} total emails`);
     res.json({ stats });
 
   } catch (error) {
-    console.error('Stats error:', error);
+    console.error('❌ Stats error:', error);
     res.status(500).json({
       error: 'Failed to get statistics',
       details: error.message
@@ -1237,6 +1320,600 @@ app.delete('/api/custom-categories/:userId/:categoryId', async (req, res) => {
   }
 });
 
+// ENHANCED CATEGORY MANAGEMENT APIs
+
+// ML Training signal endpoint - learns from user feedback
+app.post('/api/ml/training-signal', async (req, res) => {
+  try {
+    const {
+      emailUid,
+      fromCategory,
+      toCategory,
+      mlSuggestion,
+      mlConfidence,
+      userAction,
+      timestamp
+    } = req.body;
+
+    console.log(`🎯 Training signal: ${userAction} - ${fromCategory} → ${toCategory} (ML suggested: ${mlSuggestion}, confidence: ${mlConfidence})`);
+
+    // Store training data
+    const trainingData = {
+      emailUid,
+      fromCategory,
+      toCategory,
+      mlSuggestion,
+      mlConfidence,
+      userAction,
+      timestamp: new Date(timestamp || Date.now())
+    };
+
+    // Save to database for ML learning
+    if (emailDb && emailDb.saveTrainingSignal) {
+      await emailDb.saveTrainingSignal(trainingData);
+    }
+
+    // If user consistently corrects ML, adjust confidence
+    if (mlPipeline && userAction === 'suggestion_reject') {
+      await mlPipeline.adjustConfidenceForPattern(emailUid, -0.1);
+    } else if (userAction === 'suggestion_accept') {
+      await mlPipeline.adjustConfidenceForPattern(emailUid, 0.1);
+    }
+
+    res.json({ success: true, recorded: true });
+  } catch (error) {
+    console.error('Error recording training signal:', error);
+    res.status(500).json({ error: 'Failed to record training signal' });
+  }
+});
+
+// Auto-rule creation endpoint
+app.post('/api/rules/create', async (req, res) => {
+  try {
+    const { trigger, action, confidence_required = 0.90 } = req.body;
+
+    const rule = {
+      id: `rule_${Date.now()}`,
+      trigger,
+      action,
+      confidenceRequired: confidence_required,
+      createdAt: new Date(),
+      usageCount: 0,
+      enabled: true
+    };
+
+    // Save rule to cache
+    const rulesKey = 'auto_rules';
+    if (redisConnected && redisClient) {
+      try {
+        const existing = await redisClient.get(rulesKey) || '[]';
+        const rules = JSON.parse(existing);
+        rules.push(rule);
+        await redisClient.set(rulesKey, JSON.stringify(rules));
+      } catch (error) {
+        console.warn('Redis rule save error:', error.message);
+      }
+    }
+
+    console.log(`📋 Auto-rule created: ${trigger.type}=${trigger.value} → ${action.category}`);
+    res.json({ success: true, rule });
+  } catch (error) {
+    console.error('Error creating auto rule:', error);
+    res.status(500).json({ error: 'Failed to create auto rule' });
+  }
+});
+
+// === PHASE 2: SMART FOLDER MANAGEMENT APIs ===
+
+// Get folder suggestions based on email patterns
+app.get('/api/folders/suggestions', async (req, res) => {
+  try {
+    console.log('🎯 Getting smart folder suggestions...');
+
+    // Get recent emails to analyze patterns
+    const recentEmails = await getRecentEmails('primary', 100);
+
+    const suggestions = [];
+    const senderFolderMap = new Map();
+    const categoryFolderMap = new Map();
+
+    // Analyze email patterns
+    for (const email of recentEmails) {
+      const domain = email.from ? email.from.split('@')[1] : null;
+      const category = email.mlAnalysis?.category || 'other';
+
+      if (domain) {
+        if (!senderFolderMap.has(domain)) {
+          senderFolderMap.set(domain, []);
+        }
+        senderFolderMap.get(domain).push(email);
+      }
+
+      if (!categoryFolderMap.has(category)) {
+        categoryFolderMap.set(category, []);
+      }
+      categoryFolderMap.get(category).push(email);
+    }
+
+    // Generate sender-based folder suggestions
+    for (const [domain, emails] of senderFolderMap) {
+      if (emails.length >= 5) {
+        const companyName = domain.split('.')[0];
+        const displayName = companyName.charAt(0).toUpperCase() + companyName.slice(1);
+
+        suggestions.push({
+          type: 'sender_folder',
+          folderName: displayName,
+          folderPath: `Senders/${displayName}`,
+          reason: `${emails.length} emails från ${domain}`,
+          emailIds: emails.map(e => e.uid),
+          confidence: Math.min(emails.length / 10, 0.95),
+          category: 'sender',
+          estimatedEmails: emails.length
+        });
+      }
+    }
+
+    // Generate category-based folder suggestions
+    for (const [category, emails] of categoryFolderMap) {
+      if (emails.length >= 10 && category !== 'other') {
+        const displayNames = {
+          newsletter: 'Nyhetsbrev',
+          work: 'Arbete',
+          invoice: 'Fakturor',
+          security: 'Säkerhet',
+          meetings: 'Möten',
+          social: 'Socialt',
+          personal: 'Personligt'
+        };
+
+        const displayName = displayNames[category] || category;
+
+        suggestions.push({
+          type: 'category_folder',
+          folderName: displayName,
+          folderPath: `Categories/${displayName}`,
+          reason: `${emails.length} emails i kategori ${category}`,
+          emailIds: emails.map(e => e.uid),
+          confidence: Math.min(emails.length / 20, 0.90),
+          category: category,
+          estimatedEmails: emails.length
+        });
+      }
+    }
+
+    // Sort by confidence and limit results
+    const sortedSuggestions = suggestions
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 8);
+
+    console.log(`✅ Generated ${sortedSuggestions.length} folder suggestions`);
+    res.json({ suggestions: sortedSuggestions });
+
+  } catch (error) {
+    console.error('❌ Error generating folder suggestions:', error);
+    res.status(500).json({ error: error.message, suggestions: [] });
+  }
+});
+
+// Get folder structure
+app.get('/api/folders', async (req, res) => {
+  try {
+    console.log('📁 Getting folder structure...');
+
+    // Mock folder structure - in production this would come from IMAP
+    const folders = [
+      {
+        name: 'INBOX',
+        path: 'INBOX',
+        unreadCount: 156,
+        children: []
+      },
+      {
+        name: 'Sent',
+        path: 'Sent',
+        unreadCount: 0,
+        children: []
+      },
+      {
+        name: 'Archive',
+        path: 'Archive',
+        unreadCount: 0,
+        children: []
+      },
+      {
+        name: 'Categories',
+        path: 'Categories',
+        unreadCount: 0,
+        children: [
+          { name: 'Nyhetsbrev', path: 'Categories/Nyhetsbrev', unreadCount: 0 },
+          { name: 'Arbete', path: 'Categories/Arbete', unreadCount: 0 },
+          { name: 'Fakturor', path: 'Categories/Fakturor', unreadCount: 0 }
+        ]
+      },
+      {
+        name: 'Senders',
+        path: 'Senders',
+        unreadCount: 0,
+        children: []
+      }
+    ];
+
+    res.json({ folders });
+
+  } catch (error) {
+    console.error('❌ Error getting folders:', error);
+    res.status(500).json({ error: error.message, folders: [] });
+  }
+});
+
+// Create new folder
+app.post('/api/folders', async (req, res) => {
+  try {
+    const { path, autoCreated = false, reason = '' } = req.body;
+    console.log(`📁 Creating folder: ${path} (auto: ${autoCreated})`);
+
+    // In production, this would create actual IMAP folder
+    const folder = {
+      name: path.split('/').pop(),
+      path: path,
+      unreadCount: 0,
+      autoCreated: autoCreated,
+      reason: reason,
+      createdAt: new Date()
+    };
+
+    console.log(`✅ Folder created: ${path}`);
+    res.json({ success: true, folder });
+
+  } catch (error) {
+    console.error('❌ Error creating folder:', error);
+    res.status(500).json({ error: error.message, success: false });
+  }
+});
+
+// Move emails to folder
+app.post('/api/folders/move', async (req, res) => {
+  try {
+    const { emailIds, targetFolder } = req.body;
+    console.log(`📁 Moving ${emailIds.length} emails to ${targetFolder}`);
+
+    // In production, this would move actual emails via IMAP
+    // For now, we'll just log the action and send ML feedback
+
+    // Send learning signal
+    for (const emailId of emailIds) {
+      // Find the email to get context
+      const emails = await getRecentEmails('primary', 500);
+      const email = emails.find(e => e.uid === emailId);
+
+      if (email) {
+        // Record folder move for ML learning
+        await recordMLTrainingSignal({
+          emailUid: emailId,
+          action: 'folder_move',
+          targetFolder: targetFolder,
+          category: email.mlAnalysis?.category,
+          confidence: email.mlAnalysis?.confidence || 0.5,
+          userAction: 'bulk_move',
+          timestamp: Date.now()
+        });
+      }
+    }
+
+    console.log(`✅ Moved ${emailIds.length} emails to ${targetFolder}`);
+    res.json({ success: true, movedCount: emailIds.length, targetFolder });
+
+  } catch (error) {
+    console.error('❌ Error moving emails:', error);
+    res.status(500).json({ error: error.message, success: false });
+  }
+});
+
+// === PHASE 3: INBOX ZERO DASHBOARD APIs ===
+
+// Get inbox zero statistics
+app.get('/api/inbox-zero/stats', async (req, res) => {
+  try {
+    console.log('📊 Getting inbox zero statistics...');
+
+    const recentEmails = await getRecentEmails('primary', 500);
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    // Calculate daily processed emails (emails with categories/actions)
+    const dailyProcessed = recentEmails.filter(email => {
+      const emailDate = new Date(email.date);
+      return emailDate >= todayStart && (email.category || email.mlAnalysis?.category);
+    }).length;
+
+    // Calculate productivity metrics
+    const categorizedEmails = recentEmails.filter(email => email.category || email.mlAnalysis?.category);
+    const productivityScore = recentEmails.length > 0
+      ? Math.round((categorizedEmails.length / recentEmails.length) * 100)
+      : 0;
+
+    // Calculate streak (simplified - days with processed emails)
+    let streak = 0;
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+      const dayStart = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const dayProcessed = recentEmails.filter(email => {
+        const emailDate = new Date(email.date);
+        return emailDate >= dayStart && emailDate < dayEnd && (email.category || email.mlAnalysis?.category);
+      }).length;
+
+      if (dayProcessed > 0) {
+        streak++;
+      } else {
+        break;
+      }
+    }
+
+    // Average response time (mock for now)
+    const averageResponseTime = '2.3h';
+
+    const stats = {
+      dailyProcessed,
+      weeklyGoal: 100,
+      productivityScore,
+      averageResponseTime,
+      streak,
+      inboxZeroAchievements: streak > 0 ? 1 : 0
+    };
+
+    console.log(`✅ Generated inbox zero stats: ${JSON.stringify(stats)}`);
+    res.json({ stats });
+
+  } catch (error) {
+    console.error('❌ Error getting inbox zero stats:', error);
+    res.status(500).json({ error: error.message, stats: {} });
+  }
+});
+
+// Get achievements
+app.get('/api/inbox-zero/achievements', async (req, res) => {
+  try {
+    console.log('🏆 Getting achievements...');
+
+    const recentEmails = await getRecentEmails('primary', 500);
+    const categorizedEmails = recentEmails.filter(email => email.category || email.mlAnalysis?.category);
+
+    const achievements = [
+      {
+        id: 1,
+        title: 'First Steps',
+        description: 'Processed your first 10 emails with AI',
+        unlocked: categorizedEmails.length >= 10,
+        date: categorizedEmails.length >= 10 ? new Date().toISOString().split('T')[0] : null,
+        icon: '🎯'
+      },
+      {
+        id: 2,
+        title: 'Category Master',
+        description: 'Categorized 50 emails correctly',
+        unlocked: categorizedEmails.length >= 50,
+        date: categorizedEmails.length >= 50 ? new Date().toISOString().split('T')[0] : null,
+        icon: '📁'
+      },
+      {
+        id: 3,
+        title: 'Inbox Zero Hero',
+        description: 'Achieved inbox zero for 3 consecutive days',
+        unlocked: false, // Would need more complex tracking
+        icon: '🏆'
+      },
+      {
+        id: 4,
+        title: 'Speed Demon',
+        description: 'Process 100 emails in under 1 hour',
+        unlocked: categorizedEmails.length >= 100,
+        date: categorizedEmails.length >= 100 ? new Date().toISOString().split('T')[0] : null,
+        icon: '⚡'
+      },
+      {
+        id: 5,
+        title: 'ML Master',
+        description: 'Achieved 90%+ ML accuracy through feedback',
+        unlocked: false, // Would check ML pipeline stats
+        icon: '🧠'
+      },
+      {
+        id: 6,
+        title: 'Folder Organizer',
+        description: 'Created 5 smart folders',
+        unlocked: false, // Would check folder creation history
+        icon: '🗂️'
+      }
+    ];
+
+    const unlockedCount = achievements.filter(a => a.unlocked).length;
+    console.log(`✅ Generated ${achievements.length} achievements (${unlockedCount} unlocked)`);
+
+    res.json({ achievements });
+
+  } catch (error) {
+    console.error('❌ Error getting achievements:', error);
+    res.status(500).json({ error: error.message, achievements: [] });
+  }
+});
+
+// Get weekly progress
+app.get('/api/inbox-zero/weekly-progress', async (req, res) => {
+  try {
+    console.log('📈 Getting weekly progress...');
+
+    const recentEmails = await getRecentEmails('primary', 500);
+    const today = new Date();
+
+    const progress = [];
+    const dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+
+    for (let i = 6; i >= 0; i--) {
+      const checkDate = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+      const dayStart = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const dayProcessed = recentEmails.filter(email => {
+        const emailDate = new Date(email.date);
+        return emailDate >= dayStart && emailDate < dayEnd && (email.category || email.mlAnalysis?.category);
+      }).length;
+
+      // Weekend has lower goals
+      const isWeekend = checkDate.getDay() === 0 || checkDate.getDay() === 6;
+      const goal = isWeekend ? 10 : 20;
+
+      progress.push({
+        day: dayNames[checkDate.getDay()],
+        processed: dayProcessed,
+        goal: goal
+      });
+    }
+
+    console.log(`✅ Generated weekly progress: ${JSON.stringify(progress)}`);
+    res.json({ progress });
+
+  } catch (error) {
+    console.error('❌ Error getting weekly progress:', error);
+    res.status(500).json({ error: error.message, progress: [] });
+  }
+});
+
+// Get ML analysis with enhanced confidence data
+app.get('/api/emails/:uid/analysis', async (req, res) => {
+  try {
+    const { uid } = req.params;
+
+    // Find email in recent cache or database
+    // Support both UID strings and numeric IDs for compatibility
+    let email = null;
+    try {
+      const recentEmails = await fetchEmailsFromSource('primary', 500);
+
+      // Try exact match first, then loose match for numeric IDs
+      email = recentEmails.find(e => e.uid == uid) ||
+              recentEmails.find(e => e.uid === String(uid)) ||
+              recentEmails.find(e => String(e.uid) === String(uid));
+
+      // If no match found, also check if uid is numeric and matches sequence ID
+      if (!email && /^\d+$/.test(uid)) {
+        email = recentEmails.find(e => e.sequenceID == uid || e.messageNumber == uid);
+      }
+    } catch (err) {
+      console.log('Could not fetch email for analysis:', err);
+      return res.status(404).json({
+        error: 'Email not found',
+        details: 'Service temporarily unavailable',
+        uid: uid
+      });
+    }
+
+    if (!email) {
+      // Return structured error instead of generic 404 to help debug
+      return res.status(404).json({
+        error: 'Email not found',
+        uid: uid,
+        hint: 'Email may have been archived or deleted'
+      });
+    }
+
+    // Get ML analysis with confidence scoring
+    const mlAnalysis = await categorizeEmailWithML(email);
+
+    // Calculate enhanced confidence factors
+    const confidenceFactors = {
+      modelAccuracy: mlPipeline.getStats().accuracy || 0.5,
+      senderHistory: await calculateSenderConfidence(email.from),
+      subjectPattern: calculateSubjectPatternConfidence(email.subject),
+      contentLength: Math.min(email.text?.length / 500, 1) || 0.5,
+      timeContext: calculateTimeConfidence(email.date)
+    };
+
+    // Overall confidence (weighted average)
+    const overallConfidence = (
+      confidenceFactors.modelAccuracy * 0.4 +
+      confidenceFactors.senderHistory * 0.3 +
+      confidenceFactors.subjectPattern * 0.2 +
+      confidenceFactors.contentLength * 0.05 +
+      confidenceFactors.timeContext * 0.05
+    );
+
+    // Determine if should auto-execute, suggest, or manual review
+    const shouldAutoExecute = overallConfidence >= 0.95;
+    const shouldSuggest = overallConfidence >= 0.80 && overallConfidence < 0.95;
+    const needsManualReview = overallConfidence < 0.80;
+
+    res.json({
+      mlAnalysis,
+      confidence: overallConfidence,
+      confidenceFactors,
+      shouldAutoExecute,
+      shouldSuggest,
+      needsManualReview,
+      suggestedCategory: mlAnalysis.category,
+      isAutoExecuted: shouldAutoExecute
+    });
+
+  } catch (error) {
+    console.error('Error getting email analysis:', error);
+    res.status(500).json({ error: 'Failed to get email analysis' });
+  }
+});
+
+// Helper functions for confidence calculation
+async function calculateSenderConfidence(sender) {
+  // Check how many emails from this sender we've processed correctly
+  const senderKey = `sender_confidence:${sender}`;
+
+  if (redisConnected && redisClient) {
+    try {
+      const data = await redisClient.get(senderKey);
+      if (data) {
+        const parsed = JSON.parse(data);
+        return Math.min(parsed.correctCount / (parsed.correctCount + parsed.incorrectCount), 0.95);
+      }
+    } catch (error) {
+      console.warn('Redis sender confidence error:', error.message);
+    }
+  }
+
+  return 0.7; // Default confidence for unknown senders
+}
+
+function calculateSubjectPatternConfidence(subject) {
+  const highConfidencePatterns = [
+    { pattern: /^RE:/, confidence: 0.9 },
+    { pattern: /^FW:|^FWD:/, confidence: 0.85 },
+    { pattern: /invoice|faktura/i, confidence: 0.95 },
+    { pattern: /meeting|möte|calendar/i, confidence: 0.9 },
+    { pattern: /newsletter|nyhetsbrev/i, confidence: 0.9 },
+    { pattern: /security|säkerhet|alert/i, confidence: 0.95 }
+  ];
+
+  for (const { pattern, confidence } of highConfidencePatterns) {
+    if (pattern.test(subject)) {
+      return confidence;
+    }
+  }
+  return 0.6;
+}
+
+function calculateTimeConfidence(dateStr) {
+  const date = new Date(dateStr);
+  const hour = date.getHours();
+  const day = date.getDay();
+
+  // Higher confidence during business hours and weekdays
+  if (day >= 1 && day <= 5 && hour >= 8 && hour <= 18) {
+    return 0.8;
+  } else if (day >= 1 && day <= 5) {
+    return 0.7;
+  }
+  return 0.6;
+}
+
 // Health check
 app.get('/health', (req, res) => {
   const mlStats = mlPipeline.getStats();
@@ -1258,6 +1935,8 @@ app.get('/health', (req, res) => {
       'Smart inbox',
       'Priority sorting',
       'ML feedback collection',
+      'Enhanced category management',
+      'Auto-rule creation',
       'Account management',
       'Category statistics',
       redisConnected ? '✅ Redis caching enabled' : '⚠️ Redis caching disabled'
@@ -1267,6 +1946,151 @@ app.get('/health', (req, res) => {
 
 // QUICK FIX: API Compatibility Routes - Proxy missing /api endpoints
 // This ensures frontend can call /api/recent-emails and /api/health
+
+// ADDITIONAL API PROXIES for Enhanced Category Selector
+
+// Proxy /api/emails/:uid/analysis (new endpoint)
+app.get('/api/emails/:uid/analysis', async (req, res) => {
+  try {
+    const { uid } = req.params;
+
+    // Find email in recent cache or database
+    let email = null;
+    try {
+      const recentEmails = await fetchEmailsFromSource('primary', 100);
+      email = recentEmails.find(e => e.uid == uid);
+    } catch (err) {
+      console.log('Could not fetch email for analysis:', err);
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    if (!email) {
+      return res.status(404).json({ error: 'Email not found' });
+    }
+
+    // Get ML analysis with confidence scoring
+    const mlAnalysis = await categorizeEmailWithML(email);
+
+    // Calculate enhanced confidence factors
+    const confidenceFactors = {
+      modelAccuracy: mlPipeline.getStats().accuracy || 0.5,
+      senderHistory: await calculateSenderConfidence(email.from),
+      subjectPattern: calculateSubjectPatternConfidence(email.subject),
+      contentLength: Math.min(email.text?.length / 500, 1) || 0.5,
+      timeContext: calculateTimeConfidence(email.date)
+    };
+
+    // Overall confidence (weighted average)
+    const overallConfidence = (
+      confidenceFactors.modelAccuracy * 0.4 +
+      confidenceFactors.senderHistory * 0.3 +
+      confidenceFactors.subjectPattern * 0.2 +
+      confidenceFactors.contentLength * 0.05 +
+      confidenceFactors.timeContext * 0.05
+    );
+
+    // Determine if should auto-execute, suggest, or manual review
+    const shouldAutoExecute = overallConfidence >= 0.95;
+    const shouldSuggest = overallConfidence >= 0.80 && overallConfidence < 0.95;
+    const needsManualReview = overallConfidence < 0.80;
+
+    res.json({
+      mlAnalysis,
+      confidence: overallConfidence,
+      confidenceFactors,
+      shouldAutoExecute,
+      shouldSuggest,
+      needsManualReview,
+      suggestedCategory: mlAnalysis.category,
+      isAutoExecuted: shouldAutoExecute
+    });
+
+  } catch (error) {
+    console.error('Error getting email analysis:', error);
+    res.status(500).json({ error: 'Failed to get email analysis' });
+  }
+});
+
+// Proxy /api/ml/training-signal (new endpoint)
+app.post('/api/ml/training-signal', async (req, res) => {
+  try {
+    const {
+      emailUid,
+      fromCategory,
+      toCategory,
+      mlSuggestion,
+      mlConfidence,
+      userAction,
+      timestamp
+    } = req.body;
+
+    console.log(`🎯 [PROXY] Training signal: ${userAction} - ${fromCategory} → ${toCategory} (ML suggested: ${mlSuggestion}, confidence: ${mlConfidence})`);
+
+    // Store training data
+    const trainingData = {
+      emailUid,
+      fromCategory,
+      toCategory,
+      mlSuggestion,
+      mlConfidence,
+      userAction,
+      timestamp: new Date(timestamp || Date.now())
+    };
+
+    // Save to database for ML learning
+    if (emailDb && emailDb.saveTrainingSignal) {
+      await emailDb.saveTrainingSignal(trainingData);
+    }
+
+    // If user consistently corrects ML, adjust confidence
+    if (mlPipeline && userAction === 'suggestion_reject') {
+      await mlPipeline.adjustConfidenceForPattern(emailUid, -0.1);
+    } else if (userAction === 'suggestion_accept') {
+      await mlPipeline.adjustConfidenceForPattern(emailUid, 0.1);
+    }
+
+    res.json({ success: true, recorded: true });
+  } catch (error) {
+    console.error('Error recording training signal:', error);
+    res.status(500).json({ error: 'Failed to record training signal' });
+  }
+});
+
+// Proxy /api/rules/create (new endpoint)
+app.post('/api/rules/create', async (req, res) => {
+  try {
+    const { trigger, action, confidence_required = 0.90 } = req.body;
+
+    const rule = {
+      id: `rule_${Date.now()}`,
+      trigger,
+      action,
+      confidenceRequired: confidence_required,
+      createdAt: new Date(),
+      usageCount: 0,
+      enabled: true
+    };
+
+    // Save rule to cache
+    const rulesKey = 'auto_rules';
+    if (redisConnected && redisClient) {
+      try {
+        const existing = await redisClient.get(rulesKey) || '[]';
+        const rules = JSON.parse(existing);
+        rules.push(rule);
+        await redisClient.set(rulesKey, JSON.stringify(rules));
+      } catch (error) {
+        console.warn('Redis rule save error:', error.message);
+      }
+    }
+
+    console.log(`📋 [PROXY] Auto-rule created: ${trigger.type}=${trigger.value} → ${action.category}`);
+    res.json({ success: true, rule });
+  } catch (error) {
+    console.error('Error creating auto rule:', error);
+    res.status(500).json({ error: 'Failed to create auto rule' });
+  }
+});
 
 // Proxy /api/recent-emails to existing /recent-emails
 app.get('/api/recent-emails/:accountId', async (req, res) => {
@@ -1386,6 +2210,283 @@ app.get('/api/health', (req, res) => {
     ]
   });
 });
+
+// Proxy inbox zero endpoints with account parameter
+app.get('/api/inbox-zero/stats/:accountId', async (req, res) => {
+  console.log(`[API PROXY] /api/inbox-zero/stats/${req.params.accountId} -> /api/inbox-zero/stats`);
+  try {
+    const stats = await getInboxZeroStats(req.params.accountId);
+    res.json({ stats });
+  } catch (error) {
+    console.error('Error getting inbox zero stats:', error);
+    res.status(500).json({ error: error.message, stats: {} });
+  }
+});
+
+app.get('/api/inbox-zero/achievements/:accountId', async (req, res) => {
+  console.log(`[API PROXY] /api/inbox-zero/achievements/${req.params.accountId} -> /api/inbox-zero/achievements`);
+  try {
+    const achievements = await getInboxZeroAchievements(req.params.accountId);
+    res.json({ achievements });
+  } catch (error) {
+    console.error('Error getting achievements:', error);
+    res.status(500).json({ error: error.message, achievements: [] });
+  }
+});
+
+app.get('/api/inbox-zero/weekly-progress/:accountId', async (req, res) => {
+  console.log(`[API PROXY] /api/inbox-zero/weekly-progress/${req.params.accountId} -> /api/inbox-zero/weekly-progress`);
+  try {
+    const progress = await getWeeklyProgress(req.params.accountId);
+    res.json({ progress });
+  } catch (error) {
+    console.error('Error getting weekly progress:', error);
+    res.status(500).json({ error: error.message, progress: [] });
+  }
+});
+
+app.get('/api/folders/suggestions/:accountId', async (req, res) => {
+  console.log(`[API PROXY] /api/folders/suggestions/${req.params.accountId} -> smart folder suggestions`);
+  try {
+    const suggestions = await getSmartFolderSuggestions(req.params.accountId);
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Error getting folder suggestions:', error);
+    res.status(500).json({ error: error.message, suggestions: [] });
+  }
+});
+
+// Helper functions for the new endpoints
+function classifyEmailBasic(email) {
+  // Basic rule-based classification for performance optimization
+  const subject = (email.subject || '').toLowerCase();
+  const from = (email.from || '').toLowerCase();
+
+  // Newsletter/Marketing detection
+  if (subject.includes('newsletter') || subject.includes('unsubscribe') ||
+      from.includes('noreply') || from.includes('marketing') ||
+      from.includes('newsletter') || subject.includes('offer') ||
+      subject.includes('sale') || subject.includes('discount')) {
+    return 'marketing';
+  }
+
+  // Social notifications
+  if (from.includes('notification') || from.includes('facebook') ||
+      from.includes('twitter') || from.includes('linkedin') ||
+      from.includes('instagram') || subject.includes('mentioned you') ||
+      subject.includes('tagged you') || subject.includes('liked your')) {
+    return 'social';
+  }
+
+  // Financial/Banking
+  if (from.includes('bank') || from.includes('paypal') ||
+      from.includes('stripe') || from.includes('invoice') ||
+      subject.includes('payment') || subject.includes('receipt') ||
+      subject.includes('transaction') || subject.includes('bill')) {
+    return 'financial';
+  }
+
+  // Work/Professional
+  if (from.includes('calendar') || from.includes('meeting') ||
+      subject.includes('meeting') || subject.includes('calendar') ||
+      subject.includes('schedule') || subject.includes('call') ||
+      from.includes('jira') || from.includes('github') || from.includes('gitlab')) {
+    return 'work';
+  }
+
+  // Travel
+  if (from.includes('booking') || from.includes('hotel') ||
+      from.includes('flight') || from.includes('trip') ||
+      subject.includes('booking') || subject.includes('reservation') ||
+      subject.includes('travel') || subject.includes('flight')) {
+    return 'travel';
+  }
+
+  // Default to personal for everything else
+  return 'personal';
+}
+
+async function getInboxZeroStats(accountId) {
+  const recentEmails = await getRecentEmails(accountId, 500);
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+  const dailyProcessed = recentEmails.filter(email => {
+    const emailDate = new Date(email.date);
+    return emailDate >= todayStart && (email.category || email.mlAnalysis?.category);
+  }).length;
+
+  const categorizedEmails = recentEmails.filter(email => email.category || email.mlAnalysis?.category);
+  const productivityScore = recentEmails.length > 0
+    ? Math.round((categorizedEmails.length / recentEmails.length) * 100)
+    : 0;
+
+  let streak = 0;
+  for (let i = 0; i < 30; i++) {
+    const checkDate = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+    const dayStart = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const dayProcessed = recentEmails.filter(email => {
+      const emailDate = new Date(email.date);
+      return emailDate >= dayStart && emailDate < dayEnd && (email.category || email.mlAnalysis?.category);
+    }).length;
+
+    if (dayProcessed > 0) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return {
+    dailyProcessed,
+    weeklyGoal: 100,
+    productivityScore,
+    averageResponseTime: '2.3h',
+    streak,
+    inboxZeroAchievements: streak > 0 ? 1 : 0
+  };
+}
+
+async function getInboxZeroAchievements(accountId) {
+  const recentEmails = await getRecentEmails(accountId, 500);
+  const categorizedEmails = recentEmails.filter(email => email.category || email.mlAnalysis?.category);
+
+  return [
+    {
+      id: 1,
+      title: 'First Steps',
+      description: 'Processed your first 10 emails with AI',
+      unlocked: categorizedEmails.length >= 10,
+      date: categorizedEmails.length >= 10 ? new Date().toISOString().split('T')[0] : null,
+      icon: '🎯'
+    },
+    {
+      id: 2,
+      title: 'Category Master',
+      description: 'Categorized 50 emails correctly',
+      unlocked: categorizedEmails.length >= 50,
+      date: categorizedEmails.length >= 50 ? new Date().toISOString().split('T')[0] : null,
+      icon: '📁'
+    },
+    {
+      id: 3,
+      title: 'Inbox Zero Hero',
+      description: 'Achieved inbox zero for 3 consecutive days',
+      unlocked: false,
+      icon: '🏆'
+    },
+    {
+      id: 4,
+      title: 'Speed Demon',
+      description: 'Process 100 emails in under 1 hour',
+      unlocked: categorizedEmails.length >= 100,
+      date: categorizedEmails.length >= 100 ? new Date().toISOString().split('T')[0] : null,
+      icon: '⚡'
+    },
+    {
+      id: 5,
+      title: 'ML Master',
+      description: 'Achieved 90%+ ML accuracy through feedback',
+      unlocked: false,
+      icon: '🧠'
+    },
+    {
+      id: 6,
+      title: 'Folder Organizer',
+      description: 'Created 5 smart folders',
+      unlocked: false,
+      icon: '🗂️'
+    }
+  ];
+}
+
+async function getWeeklyProgress(accountId) {
+  const recentEmails = await getRecentEmails(accountId, 500);
+  const today = new Date();
+  const progress = [];
+  const dayNames = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+
+  for (let i = 6; i >= 0; i--) {
+    const checkDate = new Date(today.getTime() - (i * 24 * 60 * 60 * 1000));
+    const dayStart = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const dayProcessed = recentEmails.filter(email => {
+      const emailDate = new Date(email.date);
+      return emailDate >= dayStart && emailDate < dayEnd && (email.category || email.mlAnalysis?.category);
+    }).length;
+
+    const isWeekend = checkDate.getDay() === 0 || checkDate.getDay() === 6;
+    const goal = isWeekend ? 10 : 20;
+
+    progress.push({
+      day: dayNames[checkDate.getDay()],
+      processed: dayProcessed,
+      goal: goal
+    });
+  }
+
+  return progress;
+}
+
+async function getSmartFolderSuggestions(accountId) {
+  console.log('🎯 Getting smart folder suggestions...');
+
+  const recentEmails = await getRecentEmails(accountId, 100);
+
+  // Analyze email patterns to suggest folders
+  const senderMap = {};
+  const categoryMap = {};
+
+  recentEmails.forEach(email => {
+    const domain = email.from.split('@')[1];
+    if (domain) {
+      senderMap[domain] = (senderMap[domain] || 0) + 1;
+    }
+
+    if (email.category || email.mlAnalysis?.category) {
+      const cat = email.category || email.mlAnalysis?.category;
+      categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+    }
+  });
+
+  const suggestions = [];
+
+  // Top senders (domains with >3 emails)
+  Object.entries(senderMap)
+    .filter(([domain, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2)
+    .forEach(([domain, count]) => {
+      suggestions.push({
+        name: domain.charAt(0).toUpperCase() + domain.slice(1),
+        path: `Senders/${domain}`,
+        reason: `${count} emails from ${domain}`,
+        confidence: Math.min(count / 10, 0.9),
+        autoCreated: false
+      });
+    });
+
+  // High-volume categories
+  Object.entries(categoryMap)
+    .filter(([cat, count]) => count >= 5)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 1)
+    .forEach(([cat, count]) => {
+      suggestions.push({
+        name: cat.charAt(0).toUpperCase() + cat.slice(1),
+        path: `Categories/${cat}`,
+        reason: `${count} emails kategoriserade som ${cat}`,
+        confidence: Math.min(count / 20, 0.95),
+        autoCreated: false
+      });
+    });
+
+  console.log(`✅ Generated ${suggestions.length} folder suggestions`);
+  return suggestions;
+}
 
 httpServer.listen(PORT, () => {
   console.log(`

@@ -16,10 +16,17 @@ import axios from 'axios';
 // For browser access, use empty string to rely on Vite proxy
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
-// BROWSER FIX: If we're in browser and have Docker backend URL, use empty string for proxy
+// FIXED: For Docker production, always use empty string for proxy
 const isDevelopment = import.meta.env.DEV;
-const isDockerBackendUrl = API_BASE_URL && API_BASE_URL.includes('email-backend');
-const RESOLVED_API_BASE_URL = (isDevelopment && isDockerBackendUrl) ? '' : API_BASE_URL;
+const isDockerProduction = API_BASE_URL && API_BASE_URL.includes('email-backend');
+const RESOLVED_API_BASE_URL = isDockerProduction ? '' : API_BASE_URL;
+
+console.log('🔗 API Configuration:', {
+  VITE_API_URL: import.meta.env.VITE_API_URL,
+  API_BASE_URL,
+  RESOLVED_API_BASE_URL,
+  isDevelopment
+});
 
 // Create axios instance with default config
 const axiosInstance = axios.create({
