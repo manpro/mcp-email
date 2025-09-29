@@ -107,11 +107,20 @@ const aiAnalyzer = new EmailAIAnalyzer();
 // Flexible AI analyzer with multi-provider support
 const flexibleAnalyzer = new FlexibleEmailAIAnalyzer('./llm-config.json');
 
-// Database instance for persistent storage
-const emailDb = new EmailDatabase();
+// Database instance for persistent storage (disabled due to better-sqlite3 issues)
+let emailDb = null;
+let mlPipeline = null;
 
-// ML Training Pipeline - GPT-OSS teaches ML model
-const mlPipeline = new MLTrainingPipeline(flexibleAnalyzer, emailDb);
+// Initialize database and ML pipeline only if possible
+try {
+  emailDb = new EmailDatabase();
+  mlPipeline = new MLTrainingPipeline(flexibleAnalyzer, emailDb);
+  console.log('✅ ML Pipeline initialized successfully');
+} catch (error) {
+  console.warn('⚠️  ML Pipeline initialization failed, using rule-based categorization:', error.message);
+  emailDb = null;
+  mlPipeline = null;
+}
 
 // Store connected email accounts
 const emailConnections = new Map();
@@ -200,6 +209,12 @@ function getRuleBasedCategorization(email) {
 
 // ML categorization function using GPT-OSS with Redis caching and SQLite persistence
 async function categorizeEmailWithML(email) {
+  // If ML pipeline is not available, use rule-based categorization
+  if (!mlPipeline || !emailDb) {
+    console.log('🔄 Using rule-based categorization (ML unavailable)');
+    return getRuleBasedCategorization(email);
+  }
+
   try {
     // Use ML Training Pipeline with GPT-OSS as teacher
     // This will:
@@ -329,7 +344,7 @@ Provide JSON response with:
 }
 
 // Fetch emails directly from IMAP server
-async function fetchEmailsFromSource(connectionId, limit = 50) {
+async function fetchEmailsFromSource(connectionId, limit = 1000) {
   try {
     // Ensure IMAP is connected
     if (!imapConnected) {
@@ -391,28 +406,77 @@ async function getRecentEmails(accountId, limit = 100) {
 app.get('/api/emails', async (req, res) => {
   try {
     const accountId = req.query.accountId || 'primary';
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit) || 1000;
 
     // Fetch emails from MCP
     const emails = await fetchEmailsFromSource(accountId, limit);
 
     if (emails.length === 0) {
-      return res.json([]);
+      return res.json({emails: []});
     }
 
     // Process each email with ML categorization
+    console.log(`🔄 Processing ${emails.length} emails for transformation`);
+    console.log(`📧 First email sample:`, {
+      uid: emails[0]?.uid,
+      from_address: emails[0]?.from_address,
+      received_at: emails[0]?.received_at,
+      text_content: emails[0]?.text_content?.substring(0, 50)
+    });
+
     const processedEmails = await Promise.all(
       emails.map(async (email) => {
-        const mlAnalysis = await categorizeEmailWithML(email);
+        let mlAnalysis = null;
+        try {
+          mlAnalysis = await categorizeEmailWithML(email);
+        } catch (mlError) {
+          console.warn(`ML categorization failed for ${email.uid}:`, mlError.message);
+        }
 
-        return {
+        // Fallback to rule-based if ML analysis is null or incomplete
+        if (!mlAnalysis || !mlAnalysis.category) {
+          console.log(`🔄 ML analysis failed, falling back to rules for ${email.uid}`);
+          mlAnalysis = getRuleBasedCategorization(email);
+          console.log(`📋 Rule-based result:`, mlAnalysis);
+        }
+
+        // Check database for manual categorization
+        let manualCategory = false;
+        let mlSource = 'rule'; // default
+
+        try {
+          // Check if we have PostgreSQL database connection available
+          if (emailDb && emailDb.pool) {
+            const dbResult = await emailDb.pool.query(
+              'SELECT manual_category FROM emails WHERE uid = $1',
+              [email.uid]
+            );
+            if (dbResult.rows[0]?.manual_category) {
+              manualCategory = true;
+              mlSource = 'manual';
+            }
+          }
+
+          // If not manual, determine ML/LLM source
+          if (!manualCategory) {
+            if (mlAnalysis.source) {
+              mlSource = mlAnalysis.source; // 'ml' or 'llm'
+            } else if (mlAnalysis.category && mlAnalysis.category !== getRuleBasedCategorization(email).category) {
+              mlSource = 'ml'; // assume ML if different from rule-based
+            }
+          }
+        } catch (dbError) {
+          console.warn('Failed to check manual category:', dbError.message);
+        }
+
+        const transformed = {
           uid: email.uid,
-          from: email.from,
+          from: email.from_address || email.from,
           subject: email.subject,
-          date: email.date,
+          date: email.received_at || email.date,
           seen: email.flags && email.flags.includes('\\Seen'),
-          text: email.text || email.bodyPreview || '',
-          bodyPreview: email.bodyPreview || (email.text ? email.text.substring(0, 200) : ''),
+          text: email.text_content || email.text || email.bodyPreview || '',
+          bodyPreview: email.text_content ? email.text_content.substring(0, 200) : (email.bodyPreview || ''),
           category: mlAnalysis.category,
           priority: mlAnalysis.priority,
           sentiment: mlAnalysis.sentiment,
@@ -420,16 +484,126 @@ app.get('/api/emails', async (req, res) => {
           topics: mlAnalysis.topics || [],
           actionRequired: mlAnalysis.action_required || false,
           summary: mlAnalysis.summary || `Email categorized as ${mlAnalysis.category}`,
+          // Source tracking for CategoryFilterStrip
+          manualCategory,
+          mlSource
         };
+
+        console.log(`📧 Transformed email ${email.uid}:`, {
+          uid: transformed.uid,
+          from: transformed.from,
+          subject: transformed.subject,
+          category: transformed.category,
+          mlSource: transformed.mlSource
+        });
+        return transformed;
       })
     );
 
     console.log(`✅ Processed ${processedEmails.length} emails with categorization`);
-    res.json(processedEmails);
+    res.json({emails: processedEmails});
   } catch (error) {
     console.error('Error in /api/emails:', error);
     res.status(500).json({ error: 'Failed to fetch emails' });
   }
+});
+
+// Mock emails endpoint for testing CategoryFilterStrip
+app.get('/api/emails/mock', async (req, res) => {
+  const mockEmails = [
+    {
+      uid: 1,
+      from: 'newsletter@company.com',
+      subject: 'Weekly Newsletter - Important Updates',
+      date: new Date().toISOString(),
+      seen: false,
+      text: 'Welcome to our weekly newsletter with important updates and news.',
+      bodyPreview: 'Welcome to our weekly newsletter with important updates...',
+      category: 'newsletter',
+      priority: 'low',
+      sentiment: 'neutral',
+      confidence: 0.85,
+      topics: ['news', 'updates'],
+      actionRequired: false,
+      summary: 'Newsletter email with weekly updates',
+      manualCategory: false,
+      mlSource: 'ml'
+    },
+    {
+      uid: 2,
+      from: 'security@bank.com',
+      subject: 'Urgent: Verify your account security',
+      date: new Date(Date.now() - 86400000).toISOString(),
+      seen: false,
+      text: 'We need you to verify your account for security purposes.',
+      bodyPreview: 'We need you to verify your account for security...',
+      category: 'security',
+      priority: 'high',
+      sentiment: 'urgent',
+      confidence: 0.95,
+      topics: ['security', 'verification'],
+      actionRequired: true,
+      summary: 'Security verification required',
+      manualCategory: false,
+      mlSource: 'llm'
+    },
+    {
+      uid: 3,
+      from: 'boss@work.com',
+      subject: 'Project deadline reminder',
+      date: new Date(Date.now() - 172800000).toISOString(),
+      seen: true,
+      text: 'Reminder about the upcoming project deadline next week.',
+      bodyPreview: 'Reminder about the upcoming project deadline...',
+      category: 'work',
+      priority: 'high',
+      sentiment: 'neutral',
+      confidence: 0.90,
+      topics: ['deadline', 'project'],
+      actionRequired: true,
+      summary: 'Work deadline reminder',
+      manualCategory: false,
+      mlSource: 'ml'
+    },
+    {
+      uid: 4,
+      from: 'friend@gmail.com',
+      subject: 'Hey, how are you?',
+      date: new Date(Date.now() - 259200000).toISOString(),
+      seen: true,
+      text: 'Just wanted to catch up and see how you are doing.',
+      bodyPreview: 'Just wanted to catch up and see how you...',
+      category: 'personal',
+      priority: 'medium',
+      sentiment: 'positive',
+      confidence: 0.80,
+      topics: ['personal', 'friendship'],
+      actionRequired: false,
+      summary: 'Personal catch-up email from friend',
+      manualCategory: false,
+      mlSource: 'rule'
+    },
+    {
+      uid: 5,
+      from: 'calendar@company.com',
+      subject: 'Meeting: Team standup tomorrow at 9 AM',
+      date: new Date(Date.now() - 345600000).toISOString(),
+      seen: false,
+      text: 'You have a scheduled meeting tomorrow. Please join the Zoom call.',
+      bodyPreview: 'You have a scheduled meeting tomorrow...',
+      category: 'meetings',
+      priority: 'high',
+      sentiment: 'neutral',
+      confidence: 0.92,
+      topics: ['meeting', 'standup'],
+      actionRequired: true,
+      summary: 'Team meeting scheduled for tomorrow',
+      manualCategory: true,
+      mlSource: 'manual'
+    }
+  ];
+
+  res.json({ emails: mockEmails });
 });
 
 // Main endpoint to get emails with full ML + GPT-OSS categorization
@@ -480,6 +654,35 @@ app.get('/recent-emails/:accountId', async (req, res) => {
           });
         }
 
+        // Determine ML/LLM source tracking
+        let manualCategory = false;
+        let mlSource = 'rule';
+
+        try {
+          // Check if we have PostgreSQL database connection available
+          if (emailDb && emailDb.pool) {
+            const dbResult = await emailDb.pool.query(
+              'SELECT manual_category FROM emails WHERE uid = $1',
+              [email.uid]
+            );
+            if (dbResult.rows[0]?.manual_category) {
+              manualCategory = true;
+              mlSource = 'manual';
+            }
+          }
+
+          // If not manual, determine ML/LLM source
+          if (!manualCategory && mlAnalysis) {
+            if (mlAnalysis.source) {
+              mlSource = mlAnalysis.source;
+            } else if (mlAnalysis.category && mlAnalysis.category !== getRuleBasedCategorization(email).category) {
+              mlSource = 'ml';
+            }
+          }
+        } catch (dbError) {
+          console.warn('Failed to check manual category for recent emails:', dbError.message);
+        }
+
         return {
           uid: email.uid,
           from: email.from,
@@ -501,7 +704,11 @@ app.get('/recent-emails/:accountId', async (req, res) => {
           score: mlAnalysis.priority === 'high' ? 100 :
                  mlAnalysis.priority === 'medium' ? 50 : 10,
 
-          analyzed: !!mlAnalysis.category // true if ML analyzed, false if rule-based
+          analyzed: !!mlAnalysis.category, // true if ML analyzed, false if rule-based
+
+          // Source tracking for CategoryFilterStrip
+          manualCategory,
+          mlSource
         };
       })
     );
@@ -1061,6 +1268,32 @@ app.get('/api/categories/stats/:accountId', async (req, res) => {
   }
 });
 
+// === CATEGORY MANAGEMENT APIs ===
+
+// Create new category
+app.post('/api/categories', async (req, res) => {
+  try {
+    const { id, name, icon, displayName } = req.body
+
+    if (!id || !name) {
+      return res.status(400).json({ error: 'Category ID and name are required' })
+    }
+
+    // For now, we'll just acknowledge the category creation
+    // In a full implementation, you'd save this to a categories table
+    console.log(`📂 New category created: ${id} (${displayName}) ${icon}`)
+
+    res.json({
+      success: true,
+      category: { id, name, icon, displayName },
+      message: `Category "${displayName}" created successfully`
+    })
+  } catch (error) {
+    console.error('Error creating category:', error)
+    res.status(500).json({ error: 'Failed to create category' })
+  }
+})
+
 // Category override endpoint
 app.post('/api/categories/override', async (req, res) => {
   try {
@@ -1108,6 +1341,19 @@ app.post('/api/categories/override', async (req, res) => {
           overriddenAt: new Date().toISOString()
         }
       );
+    }
+
+    // Direct database update to ensure persistence
+    if (emailDb && emailDb.pool) {
+      try {
+        await emailDb.pool.query(
+          'UPDATE emails SET category = $1, priority = $2, manual_category = true, updated_at = NOW() WHERE uid = $3',
+          [category, priority, emailId]
+        );
+        console.log(`✅ Database updated: Email ${emailId} → ${category}`);
+      } catch (dbError) {
+        console.error('Database update failed:', dbError);
+      }
     }
 
     res.json({
@@ -1160,6 +1406,88 @@ app.get('/api/cache/stats', async (req, res) => {
     }
   } else {
     res.json({ connected: false, message: 'Redis not connected' });
+  }
+});
+
+// Email Count Verification endpoint - for comprehensive testing
+app.get('/api/email-count-verification/:accountId', async (req, res) => {
+  try {
+    const accountId = req.params.accountId || 'primary';
+    const limit = parseInt(req.query.limit) || 500;
+
+    console.log(`🧪 Email count verification for ${accountId}`);
+
+    // 1. Get IMAP count through direct fetch
+    const imapEmails = await fetchEmailsFromSource(accountId, limit);
+    const imapCount = imapEmails.length;
+
+    // 2. Get Redis cached count
+    let redisCount = 0;
+    let redisKeys = [];
+    if (redisClient) {
+      try {
+        redisKeys = await redisClient.keys(`email:${accountId}:*`);
+        redisCount = redisKeys.length;
+      } catch (error) {
+        console.log('Redis count error:', error.message);
+      }
+    }
+
+    // 3. Get recent emails API count
+    let apiCount = 0;
+    try {
+      const response = await fetch(`http://localhost:${PORT}/api/emails?limit=${limit}`);
+      if (response.ok) {
+        const data = await response.json();
+        apiCount = Array.isArray(data) ? data.length : 0;
+      }
+    } catch (error) {
+      console.log('API count error:', error.message);
+    }
+
+    // 4. Calculate verification results
+    const verification = {
+      timestamp: new Date().toISOString(),
+      accountId,
+      sources: {
+        imap: {
+          count: imapCount,
+          description: "Direct IMAP fetch count"
+        },
+        redis: {
+          count: redisCount,
+          keyCount: redisKeys.length,
+          description: "Cached emails in Redis database"
+        },
+        api: {
+          count: apiCount,
+          description: "Recent emails API endpoint count"
+        }
+      },
+      consistency: {
+        imapRedisMatch: imapCount === redisCount,
+        imapApiMatch: imapCount === apiCount,
+        redisApiMatch: redisCount === apiCount,
+        allMatch: imapCount === redisCount && redisCount === apiCount
+      },
+      summary: {
+        maxCount: Math.max(imapCount, redisCount, apiCount),
+        minCount: Math.min(imapCount, redisCount, apiCount),
+        variance: Math.max(imapCount, redisCount, apiCount) - Math.min(imapCount, redisCount, apiCount),
+        status: (imapCount === redisCount && redisCount === apiCount) ? "CONSISTENT" : "INCONSISTENT"
+      }
+    };
+
+    console.log(`📊 Verification: IMAP=${imapCount}, Redis=${redisCount}, API=${apiCount}, Status=${verification.summary.status}`);
+
+    res.json(verification);
+  } catch (error) {
+    console.error('Email count verification error:', error);
+    res.status(500).json({
+      error: 'Email count verification failed',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 
@@ -2011,50 +2339,6 @@ app.get('/api/emails/:uid/analysis', async (req, res) => {
   }
 });
 
-// Proxy /api/ml/training-signal (new endpoint)
-app.post('/api/ml/training-signal', async (req, res) => {
-  try {
-    const {
-      emailUid,
-      fromCategory,
-      toCategory,
-      mlSuggestion,
-      mlConfidence,
-      userAction,
-      timestamp
-    } = req.body;
-
-    console.log(`🎯 [PROXY] Training signal: ${userAction} - ${fromCategory} → ${toCategory} (ML suggested: ${mlSuggestion}, confidence: ${mlConfidence})`);
-
-    // Store training data
-    const trainingData = {
-      emailUid,
-      fromCategory,
-      toCategory,
-      mlSuggestion,
-      mlConfidence,
-      userAction,
-      timestamp: new Date(timestamp || Date.now())
-    };
-
-    // Save to database for ML learning
-    if (emailDb && emailDb.saveTrainingSignal) {
-      await emailDb.saveTrainingSignal(trainingData);
-    }
-
-    // If user consistently corrects ML, adjust confidence
-    if (mlPipeline && userAction === 'suggestion_reject') {
-      await mlPipeline.adjustConfidenceForPattern(emailUid, -0.1);
-    } else if (userAction === 'suggestion_accept') {
-      await mlPipeline.adjustConfidenceForPattern(emailUid, 0.1);
-    }
-
-    res.json({ success: true, recorded: true });
-  } catch (error) {
-    console.error('Error recording training signal:', error);
-    res.status(500).json({ error: 'Failed to record training signal' });
-  }
-});
 
 // Proxy /api/rules/create (new endpoint)
 app.post('/api/rules/create', async (req, res) => {
