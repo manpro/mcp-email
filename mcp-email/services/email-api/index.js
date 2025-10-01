@@ -267,6 +267,51 @@ class EmailAPIService {
       }
     });
 
+    // Get email analysis/summary
+    this.app.get('/api/emails/:id/analysis', async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        // Get email
+        const emailResult = await this.postgres.query(
+          'SELECT subject, from_address, text_content, html_content FROM emails WHERE id = $1',
+          [id]
+        );
+
+        if (emailResult.rows.length === 0) {
+          return res.status(404).json({ error: 'Email not found' });
+        }
+
+        const email = emailResult.rows[0];
+
+        // Generate simple analysis
+        const wordCount = email.text_content ? email.text_content.split(/\s+/).length : 0;
+        const hasLinks = /(https?:\/\/[^\s]+)/.test(email.text_content || '');
+        const hasAttachments = false; // Could query attachments table
+
+        res.json({
+          summary: email.subject || '(No subject)',
+          keyPoints: [
+            `Email from ${email.from_address}`,
+            `${wordCount} words`,
+            hasLinks ? 'Contains links' : 'No links',
+            hasAttachments ? 'Has attachments' : 'No attachments'
+          ],
+          sentiment: 'neutral',
+          category: 'general',
+          priority: 'normal',
+          suggestedActions: [
+            { action: 'read', label: 'Read email' },
+            { action: 'archive', label: 'Archive' }
+          ]
+        });
+
+      } catch (error) {
+        logger.error('Failed to get email analysis:', error);
+        res.status(500).json({ error: 'Failed to get email analysis' });
+      }
+    });
+
     // Update email label
     this.app.put('/api/emails/:id/label', async (req, res) => {
       try {
