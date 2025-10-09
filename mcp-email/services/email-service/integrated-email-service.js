@@ -10,6 +10,8 @@ const EmailDatabase = require('./database');
 const IMAPService = require('./imap-service');
 const FlexibleEmailAIAnalyzer = require('./flexible-ai-analyzer');
 const MLTrainingPipeline = require('./ml-training-pipeline');
+const { emailTools } = require('./email-tools');
+const { LLMAdapter, CommandMapper, createLLMAdapter } = require('./llm-adapter');
 require('dotenv').config();
 
 const app = express();
@@ -2786,7 +2788,7 @@ app.get('/api/folders/suggestions/:accountId', async (req, res) => {
   }
 });
 
-// AI Assistant Chat endpoint with streaming support
+// AI Assistant Chat endpoint - LLM-Agnostic Function Calling
 app.post('/api/assistant/chat', async (req, res) => {
   console.log('[AI Assistant] Chat request received');
   const { message, accountId, context } = req.body;
@@ -2796,381 +2798,68 @@ app.post('/api/assistant/chat', async (req, res) => {
   }
 
   try {
-    // Try GPT-OSS first, fallback to Qwen if needed
-    const gptOssUrl = process.env.GPT_OSS_URL || 'http://172.17.0.1:8085';
-    const qwenUrl = 'http://mini:1234';
+    // Create LLM adapter (provider-agnostic)
+    const llm = createLLMAdapter();
 
-    // Build system prompt based on email context
-    let systemPrompt = `Du är en intelligent e-post-assistent driven av GPT-OSS 20B som hjälper användare att hantera sina emails.
+    const currentDate = new Date().toISOString().split('T')[0];
 
-VIKTIGT: När användaren ber dig utföra en åtgärd, svara ENDAST med kommandot i hakparenteser. Inga extra ord före eller efter.
+    // Build system prompt
+    let systemPrompt = `Du är en AI Email Management Assistant.
+Dagens datum: ${currentDate}
 
-TILLGÄNGLIGA KOMMANDON (använd dessa EXAKTA format):
+Du har tillgång till ${emailTools.length} email-hanteringsfunktioner.
+När användaren frågar om en åtgärd, använd rätt funktion.
 
-1. Skapa kategori:
-[CREATE_CATEGORY name="kivra" displayName="Kivra" color="blue"]
-Färger: blue, green, purple, orange, red, pink, indigo, cyan
+När användaren ber dig göra något (arkivera, lista, skapa, etc) - använd funktionerna.
+När användaren bara pratar med dig - svara normalt på svenska.
 
-2. Arkivera email:
-[ARCHIVE_EMAIL id="123"]
+Viktigt: Använd ALLTID funktionerna när användaren ber om en åtgärd!`;
 
-3. Markera emails som lästa:
-[MARK_READ ids="123,456,789"]
-
-4. Sök emails:
-[SEARCH_EMAIL query="maria projekt" limit="10"]
-
-5. Lista emails:
-[LIST_EMAILS limit="10" unread="true" category="inbox"]
-
-6. Visa email detaljer:
-[GET_EMAIL id="123"]
-
-7. Lista alla kategorier:
-[LIST_CATEGORIES]
-
-8. Byt kategori på email:
-[CHANGE_CATEGORY emailId="123" category="work"]
-
-9. Skapa automatisk regel:
-[CREATE_RULE name="Work Emails" condition="from_domain" value="company.com" action="categorize" target="work"]
-
-10. Lista alla regler:
-[LIST_RULES]
-
-11. Ta bort regel:
-[DELETE_RULE id="5"]
-
-12. Snooze email (återkom senare):
-[SNOOZE_EMAIL id="123" until="2025-10-15T09:00:00"]
-
-13. Lista snoozade emails:
-[LIST_SNOOZED]
-
-14. Bulk-arkivera emails:
-[BULK_ARCHIVE ids="123,456,789"]
-
-15. Bulk-radera emails:
-[BULK_DELETE ids="123,456,789"]
-
-16. Visa Inbox Zero statistik:
-[GET_INBOX_STATS]
-
-17. Visa achievements (prestationer):
-[GET_ACHIEVEMENTS]
-
-18. Räkna emails (totalt, olästa, etc):
-[COUNT_EMAILS type="unread"]
-
-19. Visa kategoristatistik:
-[CATEGORY_STATS]
-
-20. Lista alla emailkonton:
-[LIST_ACCOUNTS]
-
-21. Lista mappar för ett konto:
-[LIST_FOLDERS accountId="default"]
-
-22. Flytta email till mapp:
-[MOVE_TO_FOLDER emailId="123" folder="Work"]
-
-23. Synka konto:
-[SYNC_ACCOUNT accountId="default"]
-
-24. Analysera email med AI:
-[ANALYZE_EMAIL id="123"]
-
-25. Föreslå smart action:
-[SUGGEST_ACTION emailId="123"]
-
-26. Sammanfatta email:
-[SUMMARIZE_EMAIL id="123"]
-
-27. Extrahera kontaktinfo:
-[EXTRACT_CONTACTS emailId="123"]
-
-28. Kategorisera batch med AI:
-[CATEGORIZE_BATCH limit="50"]
-
-29. Träna ML-modell:
-[TRAIN_ML]
-
-30. Visa ML statistik:
-[GET_ML_STATS]
-
-31. Ta bort email:
-[DELETE_EMAIL id="123"]
-
-32. Väck snoozat email:
-[UNSNOOZE id="123"]
-
-33. Uppdatera regel:
-[UPDATE_RULE id="5" name="New Name" enabled="true"]
-
-34. Skapa mapp:
-[CREATE_FOLDER name="Projects" parent="INBOX"]
-
-35. ML feedback:
-[ML_FEEDBACK emailId="123" correctCategory="work" feedback="positive"]
-
-36. Exportera data (GDPR):
-[EXPORT_DATA format="json"]
-
-37. Systemhälsa:
-[HEALTH_CHECK]
-
-38. Batch-kör regler:
-[BATCH_PROCESS_RULES limit="100"]
-
-39. Förhandsgranska email:
-[EMAIL_PREVIEW id="123" format="html"]
-
-40. Markera som oläst:
-[MARK_UNREAD ids="123,456"]
-
-41. Flagga email:
-[FLAG_EMAIL id="123"]
-
-42. Stjärnmärk email:
-[STAR_EMAIL id="123"]
-
-43. Visa veckoframsteg:
-[WEEKLY_PROGRESS]
-
-44. GDPR samtycke väntar:
-[PENDING_CONSENT]
-
-45. Ge GDPR samtycke:
-[GRANT_CONSENT type="email_analysis"]
-
-46. Återkalla samtycke:
-[REVOKE_CONSENT type="email_analysis"]
-
-47. Lista integrationer:
-[LIST_INTEGRATIONS]
-
-48. Visa smart inbox:
-[SMART_INBOX limit="20"]
-
-49. Rensa cache:
-[CLEAR_CACHE]
-
-50. Cache statistik:
-[CACHE_STATS]
-
-51. Ta bort stjärnmärkning:
-[UNSTAR_EMAIL id="123"]
-
-52. Ta bort flagga:
-[UNFLAG_EMAIL id="123"]
-
-53. Flytta till inbox:
-[MOVE_TO_INBOX id="123"]
-
-54. Ta fram arkiverat:
-[UNARCHIVE id="123"]
-
-55. Senaste emails:
-[GET_RECENT_EMAILS limit="10"]
-
-56. Ta bort mapp:
-[DELETE_FOLDER name="OldProject"]
-
-57. AI-förslag mappar:
-[FOLDER_SUGGESTIONS]
-
-58. Lägg till konto:
-[ADD_ACCOUNT email="user@example.com" provider="gmail"]
-
-59. Ta bort konto:
-[REMOVE_ACCOUNT id="5"]
-
-60. Bulk snooze:
-[BULK_SNOOZE ids="123,456,789" until="2025-10-10T09:00"]
-
-61. ML status:
-[ML_STATUS]
-
-62. Email verifiering:
-[EMAIL_COUNT_VERIFICATION]
-
-63. Testa regel:
-[TEST_RULE ruleId="5" emailId="123"]
-
-64. Träningssignal:
-[TRAINING_SIGNAL emailId="123" category="work" confidence="0.95"]
-
-65. Ångra åtgärd:
-[UNDO_ACTION]
-
-66. Gör om åtgärd:
-[REDO_ACTION]
-
-67. Google OAuth:
-[OAUTH_GOOGLE]
-
-68. Microsoft OAuth:
-[OAUTH_MICROSOFT]
-
-69. Kalenderinbjudningar:
-[CALENDAR_INVITES limit="10"]
-
-70. Auto RSVP:
-[AUTO_RSVP eventId="abc123" response="accept"]
-
-71. Browser automation:
-[BROWSER_AUTOMATION action="extract" url="https://example.com"]
-
-72. Automationshistorik:
-[AUTOMATION_HISTORY limit="20"]
-
-73. Koppla från integration:
-[DISCONNECT_INTEGRATION type="google_calendar"]
-
-EXEMPEL:
-Användare: "skapa en kategori som heter Kivra"
-Du: "[CREATE_CATEGORY name=\"kivra\" displayName=\"Kivra\" color=\"blue\"]"
-
-Användare: "arkivera email 123"
-Du: "[ARCHIVE_EMAIL id=\"123\"]"
-
-Användare: "markera emails 45 och 67 som lästa"
-Du: "[MARK_READ ids=\"45,67\"]"
-
-Användare: "sök efter emails från Maria"
-Du: "[SEARCH_EMAIL query=\"maria\" limit=\"20\"]"
-
-Användare: "visa mina olästa emails"
-Du: "[LIST_EMAILS unread=\"true\" limit=\"50\"]"
-
-Användare: "visa email 89"
-Du: "[GET_EMAIL id=\"89\"]"
-
-Användare: "lista mina kategorier"
-Du: "[LIST_CATEGORIES]"
-
-Användare: "visa statistik för inbox zero"
-Du: "[GET_INBOX_STATS]"
-
-Användare: "hur många olästa emails har jag?"
-Du: "[COUNT_EMAILS type=\"unread\"]"
-
-Användare: "visa mina konton"
-Du: "[LIST_ACCOUNTS]"
-
-REGLER:
-1. Svara ENDAST med kommandot när användaren vill utföra en åtgärd
-2. Använd EXAKT format med hakparenteser [KOMMANDO ...]
-3. Inga förklaringar före eller efter kommandot
-4. Om användaren frågar något som kräver ett kommando, använd det
-5. Om användaren bara pratar, svara normalt på svenska
-
-Svara alltid på svenska.`;
-
+    // Add context if available
     if (context && context.emailCount) {
       systemPrompt += `\n\nAnvändaren har ${context.emailCount} emails totalt.`;
     }
 
-    let response;
-    let usedModel = 'gpt-oss:20b';
+    // Call LLM with tools (provider-agnostic)
+    console.log(`[AI Assistant] Calling LLM with ${emailTools.length} tools...`);
 
+    const llmResult = await llm.callWithTools([
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: message }
+    ], emailTools, {
+      temperature: 0.1, // Low for deterministic command outputs
+      maxTokens: 1000
+    });
 
-    try {
-      // Try GPT-OSS with longer timeout for 20B model
-      console.log(`[AI Assistant] Trying GPT-OSS at ${gptOssUrl}`);
-      response = await axios.post(`${gptOssUrl}/v1/chat/completions`, {
-        model: 'gpt-oss:20b',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: message }
-        ],
-        
-        
-        temperature: 0.7,
-        max_tokens: 500,
-        stream: false
-      }, {
-        timeout: 60000 // 60 seconds timeout for GPT-OSS 20B
-      });
-    } catch (gptError) {
-      console.log(`[AI Assistant] GPT-OSS failed, trying Qwen fallback: ${gptError.message}`);
+    let assistantMessage;
+    let usedModel = llm.model;
 
-      // Fallback to Qwen 2.5 7B (faster)
-      response = await axios.post(`${qwenUrl}/v1/chat/completions`, {
-        model: 'qwen2.5-7b-instruct-1m',
-        messages: [
-          { role: 'system', content: systemPrompt.replace('GPT-OSS 20B', 'Qwen 2.5 7B') },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 500,
-        stream: false
-      }, {
-        timeout: 30000 // 30 seconds for Qwen
-      });
-      usedModel = 'qwen2.5-7b';
+    // Check if LLM called a function
+    if (llmResult.type === 'tool_call') {
+      // LLM wants to use a tool!
+      console.log(`[AI Assistant] Tool call detected: ${llmResult.toolCall.name}`);
+      console.log(`[AI Assistant] Arguments:`, JSON.stringify(llmResult.toolCall.arguments, null, 2));
+
+      // Convert to legacy [COMMAND] format for backwards compatibility
+      assistantMessage = CommandMapper.toLegacyFormat(
+        llmResult.toolCall.name,
+        llmResult.toolCall.arguments
+      );
+
+      console.log(`[AI Assistant] Converted to legacy format: ${assistantMessage}`);
+    } else {
+      // No tool call, just text response
+      assistantMessage = llmResult.content;
     }
 
-    // Check if GPT-OSS wants to use a tool
-    const choice = response.data.choices[0];
-    console.log('[AI Assistant] GPT-OSS response:', JSON.stringify(choice.message, null, 2));
+    // ============================================================================
+    // COMMAND PARSING - All 73 commands
+    // ============================================================================
 
-    if (choice.message.tool_calls && choice.message.tool_calls.length > 0) {
-      // GPT-OSS wants to create a category
-      const toolCall = choice.message.tool_calls[0];
+    // ============================================================================
+    // COMMAND PARSERS - All 73 commands (backwards compatibility)
+    // ============================================================================
 
-      if (toolCall.function.name === 'create_category') {
-        try {
-          const args = JSON.parse(toolCall.function.arguments);
-          console.log(`[AI Assistant] Creating category via tool:`, args);
-
-          // Create category in database
-          const categoryResult = await emailDb.pool.query(`
-            INSERT INTO labels (name, display_name, color, created_at)
-            VALUES ($1, $2, $3, NOW())
-            ON CONFLICT (name) DO UPDATE SET
-              display_name = EXCLUDED.display_name,
-              color = EXCLUDED.color
-            RETURNING id, name, display_name as "displayName", color
-          `, [
-            args.name,
-            args.displayName,
-            args.color || 'blue'
-          ]);
-
-          const category = categoryResult.rows[0];
-
-          // Return success message
-          return res.json({
-            success: true,
-            message: `✅ Jag har skapat kategorin "${category.displayName}" (${category.name}) med färgen ${category.color}. Kategorin är nu tillgänglig i din sidopanel.`,
-            model: usedModel,
-            tool_used: 'create_category',
-            category: {
-              ...category,
-              icon: args.icon || 'tag'
-            },
-            timestamp: new Date().toISOString()
-          });
-        } catch (toolError) {
-          console.error('[AI Assistant] Tool execution error:', toolError);
-          return res.json({
-            success: true,
-            message: `❌ Kunde inte skapa kategorin: ${toolError.message}`,
-            model: usedModel,
-            timestamp: new Date().toISOString()
-          });
-        }
-      }
-    }
-
-    // Normal text response - check for category creation command
-    const assistantMessage = choice.message.content || '';
-
-    // Log if message is empty
-    if (!assistantMessage && !choice.message.tool_calls) {
-      console.log('[AI Assistant] Empty response from model:', JSON.stringify(choice.message));
-    }
 
     // Parse for [CREATE_CATEGORY ...] command
     const createCategoryMatch = assistantMessage.match(/\[CREATE_CATEGORY\s+name="([^"]+)"\s+displayName="([^"]+)"\s+color="([^"]+)"\]/);
