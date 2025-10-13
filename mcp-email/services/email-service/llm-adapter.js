@@ -46,15 +46,24 @@ class LLMAdapter {
    * OpenAI-compatible format (works with Ollama, vLLM, LM Studio, etc)
    */
   async callOpenAIFormat(messages, tools, temperature, maxTokens) {
-    const response = await axios.post(`${this.url}/v1/chat/completions`, {
+    const requestBody = {
       model: this.model,
       messages,
       tools,
-      tool_choice: "auto", // Let LLM decide
       temperature,
       max_tokens: maxTokens,
       stream: false
-    }, {
+    };
+
+    // GPT-OSS specific settings
+    if (this.model.includes('gpt-oss')) {
+      requestBody.tool_choice = "required"; // Force GPT-OSS to use tools
+      requestBody.num_ctx = 8192; // Larger context for better tool understanding
+    }
+
+    console.log(`[LLM Adapter] Request body:`, JSON.stringify(requestBody, null, 2).substring(0, 500));
+
+    const response = await axios.post(`${this.url}/v1/chat/completions`, requestBody, {
       timeout: 60000 // 60 second timeout
     });
 
@@ -102,20 +111,32 @@ class LLMAdapter {
     if (message.tool_calls && message.tool_calls.length > 0) {
       const toolCall = message.tool_calls[0];
 
+      // Extract reasoning content for GPT-OSS chain-of-thought
+      const reasoning = message.reasoning_content || message.content || '';
+
       return {
         type: 'tool_call',
         toolCall: {
           name: toolCall.function.name,
-          arguments: JSON.parse(toolCall.function.arguments)
+          arguments: typeof toolCall.function.arguments === 'string'
+            ? JSON.parse(toolCall.function.arguments)
+            : toolCall.function.arguments
         },
+        reasoning: reasoning,
         rawMessage: message.content || ''
       };
+    }
+
+    // GPT-OSS might put tool info in content
+    // Try to extract tool call from reasoning_content
+    if (message.reasoning_content) {
+      console.log('[LLM Adapter] Found reasoning_content:', message.reasoning_content);
     }
 
     // No tool call, just text response
     return {
       type: 'text',
-      content: message.content,
+      content: message.content || message.reasoning_content || '',
       toolCall: null
     };
   }
@@ -225,14 +246,49 @@ class CommandMapper {
 }
 
 /**
- * Factory function to create LLM adapter from env variables
+ * Factory function to create LLM adapter from env variables or config
  */
 function createLLMAdapter() {
+  // Try to load from llm-config.json first
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const configPath = path.resolve(__dirname, 'llm-config.json');
+
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+      // Find highest priority enabled provider
+      const providers = Object.entries(config.providers)
+        .filter(([_, p]) => p.enabled)
+        .sort((a, b) => a[1].priority - b[1].priority);
+
+      if (providers.length > 0) {
+        const [providerName, providerConfig] = providers[0];
+
+        // Determine provider type from URL or model
+        let providerType = 'ollama'; // default
+        if (providerConfig.url.includes('anthropic')) {
+          providerType = 'anthropic';
+        } else if (providerConfig.model.includes('gpt')) {
+          providerType = 'openai';
+        }
+
+        console.log(`[LLM Factory] Creating adapter from config: ${providerType}/${providerConfig.model} at ${providerConfig.url}`);
+
+        return new LLMAdapter(providerType, providerConfig.model, providerConfig.url);
+      }
+    }
+  } catch (error) {
+    console.log(`[LLM Factory] Config loading failed, using env vars:`, error.message);
+  }
+
+  // Fallback to environment variables
   const provider = process.env.LLM_PROVIDER || 'ollama';
   const model = process.env.LLM_MODEL || 'gpt-oss:20b';
   const url = process.env.LLM_URL || 'http://172.17.0.1:8085';
 
-  console.log(`[LLM Factory] Creating adapter: ${provider}/${model} at ${url}`);
+  console.log(`[LLM Factory] Creating adapter from env: ${provider}/${model} at ${url}`);
 
   return new LLMAdapter(provider, model, url);
 }

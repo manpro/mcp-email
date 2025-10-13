@@ -1,13 +1,23 @@
 {
   "providers": {
-    "gpt-oss": {
-      "name": "GPT-OSS 20B",
-      "url": "http://localhost:8085",
-      "model": "gpt-oss:20b",
+    "qwen3": {
+      "name": "Qwen3 8B",
+      "url": "http://100.109.101.23:1234",
+      "model": "qwen/qwen3-8b",
       "endpoint": "/v1/chat/completions",
       "temperature": 0.3,
       "max_tokens": 250,
       "enabled": true,
+      "priority": 1
+    },
+    "gpt-oss": {
+      "name": "GPT-OSS 20B",
+      "url": "http://172.17.0.1:8085",
+      "model": "gpt-oss:20b",
+      "endpoint": "/v1/chat/completions",
+      "temperature": 0.3,
+      "max_tokens": 250,
+      "enabled": false,
       "priority": 2
     },
     "qwen": {
@@ -17,8 +27,18 @@
       "endpoint": "/v1/chat/completions",
       "temperature": 0.3,
       "max_tokens": 250,
+      "enabled": false,
+      "priority": 3
+    },
+    "local-gpt-oss": {
+      "name": "Local GPT-OSS",
+      "url": "http://127.0.0.1:1234",
+      "model": "gpt-oss",
+      "endpoint": "/v1/chat/completions",
+      "temperature": 0.3,
+      "max_tokens": 250,
       "enabled": true,
-      "priority": 1
+      "priority": 1.5
     },
     "deepseek": {
       "name": "DeepSeek R1",

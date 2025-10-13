@@ -2820,13 +2820,25 @@ Viktigt: Använd ALLTID funktionerna när användaren ber om en åtgärd!`;
       systemPrompt += `\n\nAnvändaren har ${context.emailCount} emails totalt.`;
     }
 
+    // Limit tools to most common ones (Qwen3 has issues with 73 tools)
+    const commonToolNames = [
+      'list_categories', 'create_category', 'update_category', 'delete_category',
+      'list_emails', 'search_emails', 'get_email', 'mark_read', 'mark_unread',
+      'archive_email', 'delete_email', 'move_email', 'star_email', 'unstar_email',
+      'snooze_email'
+    ];
+
+    const limitedTools = emailTools.filter(tool =>
+      commonToolNames.includes(tool.function.name)
+    );
+
     // Call LLM with tools (provider-agnostic)
-    console.log(`[AI Assistant] Calling LLM with ${emailTools.length} tools...`);
+    console.log(`[AI Assistant] Calling LLM with ${limitedTools.length}/${emailTools.length} tools...`);
 
     const llmResult = await llm.callWithTools([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message }
-    ], emailTools, {
+    ], limitedTools, {
       temperature: 0.1, // Low for deterministic command outputs
       maxTokens: 1000
     });
