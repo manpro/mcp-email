@@ -1,9 +1,9 @@
 {
   "providers": {
     "qwen3": {
-      "name": "Qwen3 8B",
-      "url": "http://100.109.101.23:1234",
-      "model": "qwen/qwen3-8b",
+      "name": "Qwen3 14B (Ollama)",
+      "url": "http://172.17.0.1:8085",
+      "model": "qwen3:14b",
       "endpoint": "/v1/chat/completions",
       "temperature": 0.3,
       "max_tokens": 250,
@@ -37,7 +37,7 @@
       "endpoint": "/v1/chat/completions",
       "temperature": 0.3,
       "max_tokens": 250,
-      "enabled": true,
+      "enabled": false,
       "priority": 1.5
     },
     "deepseek": {

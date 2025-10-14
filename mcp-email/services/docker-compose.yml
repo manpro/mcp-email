@@ -1,61 +1,197 @@
 version: '3.8'
 
 services:
-  email-redis:
-    image: redis:7-alpine
-    container_name: email-redis
-    ports:
-      - "6380:6379"
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: email-postgres
+    # No public ports - internal only
+    expose:
+      - "5432"
+    environment:
+      - POSTGRES_DB=email_management
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
     volumes:
-      - redis-data:/data
+      - postgres-data:/var/lib/postgresql/data
+      - ./create_email_db_schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d email_management"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ML Classifier Service
+  ml-classifier:
+    build: ./ml-classifier
+    container_name: email-ml-classifier
+    network_mode: host
+    environment:
+      - PORT=3016
+      - DB_HOST=localhost
+      - DB_PORT=5432
+      - DB_NAME=email_management
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - GPT_OSS_URL=http://localhost:8085/v1
+      - GPT_OSS_MODEL=qwen3:14b
+      - GPT_OSS_TIMEOUT=60000
+      - LOG_LEVEL=debug
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:13016/health"]
       interval: 30s
       timeout: 3s
       retries: 3
 
-  email-backend:
+  # Action Orchestrator
+  action-orchestrator:
+    build: ./action-orchestrator
+    container_name: email-action-orchestrator
+    # No public ports - internal only
+    expose:
+      - "3017"
+    environment:
+      - PORT=3017
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=email_management
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - CLASSIFIER_URL=http://ml-classifier:3016
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+      - ml-classifier
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3017/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Email API Service (integrated-email-service with Snooze support)
+  email-api:
     build: ./email-service
-    container_name: email-backend
+    container_name: email-api-service
     ports:
       - "3015:3015"
-    env_file:
-      - ./email-service/.env
     environment:
       - PORT=3015
-      - REDIS_HOST=email-redis
-      - REDIS_PORT=6379
-      - DATABASE_PATH=/app/data/email_cache.db
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=email_management
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - CLASSIFIER_URL=http://ml-classifier:3016
+      - ORCHESTRATOR_URL=http://action-orchestrator:3017
+      - FRONTEND_URL=http://localhost:3623
       - NODE_ENV=production
-    volumes:
-      - email-data:/app/data
-      - ./email-service/llm-config.json:/app/llm-config.json:ro
     depends_on:
-      - email-redis
+      - postgres
+      - ml-classifier
+      - action-orchestrator
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3015/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      test: ["CMD", "curl", "-f", "http://localhost:3015/health"]
       interval: 30s
       timeout: 3s
       retries: 3
-      start_period: 5s
 
+  # IMAP Sync Worker
+  imap-sync:
+    build: ./imap-sync
+    container_name: email-imap-sync
+    env_file:
+      - .env
+    environment:
+      - EMAIL_USER=${IMAP_USER:-}
+      - EMAIL_PASSWORD=${IMAP_PASSWORD:-}
+      - EMAIL_HOST=${IMAP_HOST:-imap.one.com}
+      - EMAIL_PORT=${IMAP_PORT:-993}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=email_management
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - LOG_LEVEL=debug
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  # Frontend
   email-frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.production
+      dockerfile: Dockerfile
+      target: production
     container_name: email-frontend
     ports:
       - "3623:3623"
     environment:
-      - VITE_API_URL=
+      - NODE_ENV=production
     depends_on:
-      - email-backend
+      - email-api
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3623"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.playwright
+    container_name: email-playwright-tests
+    environment:
+      - PLAYWRIGHT_BASE_URL=http://email-frontend:3623
+    volumes:
+      - ./test-results:/app/test-results
+    depends_on:
+      - email-frontend
+      - email-api
+
+  # MCP Debug Container
+  mcp-debug:
+    build: ./mcp-debug-container
+    container_name: email-mcp-debug
+    # No public ports - internal only (debug tool)
+    expose:
+      - "3050"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=email_management
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - NODE_ENV=production
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./test-results:/logs/test-results:ro
+      - ./frontend/dist:/logs/frontend:ro
+    depends_on:
+      - postgres
+      - email-api
+      - email-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3050/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - default
 
 volumes:
-  email-data:
-    driver: local
-  redis-data:
+  postgres-data:
     driver: local

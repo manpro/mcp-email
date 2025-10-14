@@ -67,7 +67,7 @@ class LLMAdapter {
       timeout: 60000 // 60 second timeout
     });
 
-    return this.parseOpenAIResponse(response.data);
+    return this.parseOpenAIResponse(response.data, tools);
   }
 
   /**
@@ -101,7 +101,7 @@ class LLMAdapter {
   /**
    * Parse OpenAI-format response
    */
-  parseOpenAIResponse(data) {
+  parseOpenAIResponse(data, tools = []) {
     const choice = data.choices[0];
     const message = choice.message;
 
@@ -133,12 +133,95 @@ class LLMAdapter {
       console.log('[LLM Adapter] Found reasoning_content:', message.reasoning_content);
     }
 
+    // No tool call detected - try to extract intent from text (fallback for models without tool calling)
+    const textContent = message.content || message.reasoning_content || '';
+    const extractedTool = this.extractToolFromText(textContent, tools);
+
+    if (extractedTool) {
+      console.log('[LLM Adapter] Extracted tool from text:', extractedTool);
+      return {
+        type: 'tool_call',
+        toolCall: extractedTool,
+        rawMessage: textContent
+      };
+    }
+
     // No tool call, just text response
     return {
       type: 'text',
-      content: message.content || message.reasoning_content || '',
+      content: textContent,
       toolCall: null
     };
+  }
+
+  /**
+   * Extract tool call intent from natural language text
+   * Fallback for models that don't support native tool calling
+   */
+  extractToolFromText(text, tools) {
+    const lowerText = text.toLowerCase();
+
+    // Pattern: "flytta alla emails/mejl från X till Y"
+    // Tool: move_emails_from_sender
+    const moveMatch = lowerText.match(/flytta.*(?:emails?|mejl).*från\s+([^\s]+).*till\s+(?:kategori(?:n)?\s+)?([^\s.!?]+)/i);
+    if (moveMatch && tools.find(t => t.function.name === 'move_emails_from_sender')) {
+      return {
+        name: 'move_emails_from_sender',
+        arguments: {
+          sender: moveMatch[1],
+          category: moveMatch[2]
+        }
+      };
+    }
+
+    // Pattern: "kategorisera alla emails/mejl från X som Y"
+    const categorizeMatch = lowerText.match(/kategorisera.*(?:emails?|mejl).*från\s+([^\s]+).*(?:som|till)\s+([^\s.!?]+)/i);
+    if (categorizeMatch && tools.find(t => t.function.name === 'move_emails_from_sender')) {
+      return {
+        name: 'move_emails_from_sender',
+        arguments: {
+          sender: categorizeMatch[1],
+          category: categorizeMatch[2]
+        }
+      };
+    }
+
+    // Pattern: "skapa kategori(n) X"
+    const createCategoryMatch = lowerText.match(/skapa\s+kategori(?:n)?\s+([^\s.!?]+)/i);
+    if (createCategoryMatch && tools.find(t => t.function.name === 'create_category')) {
+      const categoryName = createCategoryMatch[1];
+      return {
+        name: 'create_category',
+        arguments: {
+          name: categoryName.toLowerCase(),
+          displayName: categoryName.charAt(0).toUpperCase() + categoryName.slice(1),
+          color: 'blue'
+        }
+      };
+    }
+
+    // Pattern: "lista kategorier" or "visa kategorier"
+    if ((lowerText.includes('lista') || lowerText.includes('visa')) && lowerText.includes('kategori')) {
+      if (tools.find(t => t.function.name === 'list_categories')) {
+        return {
+          name: 'list_categories',
+          arguments: {}
+        };
+      }
+    }
+
+    // Pattern: "sök efter X" or "hitta emails om X"
+    const searchMatch = lowerText.match(/(?:sök|hitta).*(?:efter|om)\s+(.+?)(?:\.|!|\?|$)/i);
+    if (searchMatch && tools.find(t => t.function.name === 'search_emails')) {
+      return {
+        name: 'search_emails',
+        arguments: {
+          query: searchMatch[1].trim()
+        }
+      };
+    }
+
+    return null;
   }
 
   /**

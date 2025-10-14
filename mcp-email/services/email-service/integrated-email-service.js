@@ -2803,66 +2803,103 @@ app.post('/api/assistant/chat', async (req, res) => {
 
     const currentDate = new Date().toISOString().split('T')[0];
 
-    // Build system prompt
-    let systemPrompt = `Du är en AI Email Management Assistant.
+    // Build system prompt with ALL 74 available commands
+    let systemPrompt = `Du är en AI Email Management Assistant med 74 kraftfulla kommandon.
 Dagens datum: ${currentDate}
 
-Du har tillgång till ${emailTools.length} email-hanteringsfunktioner.
-När användaren frågar om en åtgärd, använd rätt funktion.
+KOMMANDOFORMAT: [COMMAND arg="värde"]
 
-När användaren ber dig göra något (arkivera, lista, skapa, etc) - använd funktionerna.
-När användaren bara pratar med dig - svara normalt på svenska.
+📧 EMAIL-OPERATIONER:
+[GET_EMAIL id="123"] - Hämta email
+[LIST_EMAILS limit="50" unread="true" category="inbox"] - Lista (valfritt)
+[SEARCH_EMAIL query="text" limit="10"] - Sök
+[MARK_READ ids="1,2,3"] - Markera läst
+[MARK_UNREAD ids="1,2,3"] - Markera oläst
+[ARCHIVE_EMAIL id="123"] / [UNARCHIVE id="123"] - Arkivera/avarkivera
+[DELETE_EMAIL id="123"] - Radera
+[FLAG_EMAIL id="123"] / [UNFLAG_EMAIL id="123"] - Flagga
+[STAR_EMAIL id="123"] / [UNSTAR_EMAIL id="123"] - Stjärnmärk
+[SNOOZE_EMAIL id="123" until="2025-01-15T10:00"] - Snooze
+[UNSNOOZE id="123"] - Ta bort snooze
+[MOVE_TO_FOLDER emailId="123" folder="Archive"] - Flytta
+[MOVE_TO_INBOX id="123"] - Till inbox
 
-Viktigt: Använd ALLTID funktionerna när användaren ber om en åtgärd!`;
+📁 KATEGORIER:
+[CREATE_CATEGORY name="work" displayName="Work" color="blue"] - Skapa
+[LIST_CATEGORIES] - Lista
+[CATEGORY_STATS] - Statistik
+[CHANGE_CATEGORY emailId="123" category="work"] - Ändra
+[CATEGORIZE_FROM_SENDER sender="kivra" category="kivra"] - ALLA från avsändare
+
+📊 BULK:
+[BULK_ARCHIVE ids="1,2,3"] - Arkivera flera
+[BULK_DELETE ids="1,2,3"] - Radera flera
+[BULK_SNOOZE ids="1,2,3" until="2025-01-15"] - Snooze flera
+[CATEGORIZE_BATCH limit="50"] - Auto-kategorisera
+
+🔍 ANALYS:
+[ANALYZE_EMAIL id="123"] - Analysera
+[SUMMARIZE_EMAIL id="123"] - Sammanfatta
+[SUGGEST_ACTION emailId="123"] - Föreslå åtgärd
+[EXTRACT_CONTACTS emailId="123"] - Extrahera kontakter
+
+📋 REGLER:
+[CREATE_RULE name="Auto" condition="from" value="news" action="archive" target=""]
+[LIST_RULES] - Lista
+[UPDATE_RULE id="123" name="Ny" enabled="true"]
+[DELETE_RULE id="123"]
+[TEST_RULE ruleId="123" emailId="456"]
+
+📈 STATISTIK:
+[GET_INBOX_STATS] - Inbox-stats
+[COUNT_EMAILS type="unread"] - Räkna
+[WEEKLY_PROGRESS] - Veckorapport
+[SMART_INBOX limit="20"] - Prioriterade
+
+🗂️ KONTON:
+[LIST_ACCOUNTS] - Lista
+[SYNC_ACCOUNT accountId="1"] - Synka
+[LIST_FOLDERS accountId="1"] - Mappar
+
+🤖 ML:
+[TRAIN_ML] - Träna
+[GET_ML_STATS] - Stats
+[ML_FEEDBACK emailId="123" correctCategory="work"]
+
+⚙️ SYSTEM:
+[HEALTH_CHECK] - Status
+[CLEAR_CACHE] - Rensa
+[EXPORT_DATA format="json"] - Exportera
+
+EXEMPEL:
+"Flytta kivra-mail" → [CATEGORIZE_FROM_SENDER sender="kivra" category="kivra"]
+"Skapa Work-kategori" → [CREATE_CATEGORY name="work" displayName="Work" color="blue"]
+"Visa olästa" → [LIST_EMAILS unread="true"]
+"Arkivera 1,2,3" → [BULK_ARCHIVE ids="1,2,3"]
+
+VIKTIGT: Ett kommando per svar! Svara vanligt vid småprat.`;
 
     // Add context if available
     if (context && context.emailCount) {
       systemPrompt += `\n\nAnvändaren har ${context.emailCount} emails totalt.`;
     }
 
-    // Limit tools to most common ones (Qwen3 has issues with 73 tools)
-    const commonToolNames = [
-      'list_categories', 'create_category', 'update_category', 'delete_category',
-      'list_emails', 'search_emails', 'get_email', 'mark_read', 'mark_unread',
-      'archive_email', 'delete_email', 'move_email', 'star_email', 'unstar_email',
-      'snooze_email'
-    ];
+    // Call LLM without tools (simple chat)
+    console.log(`[AI Assistant] Calling LLM for legacy command generation...`);
 
-    const limitedTools = emailTools.filter(tool =>
-      commonToolNames.includes(tool.function.name)
-    );
-
-    // Call LLM with tools (provider-agnostic)
-    console.log(`[AI Assistant] Calling LLM with ${limitedTools.length}/${emailTools.length} tools...`);
-
-    const llmResult = await llm.callWithTools([
+    const llmResult = await llm.chat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message }
-    ], limitedTools, {
+    ], {
       temperature: 0.1, // Low for deterministic command outputs
       maxTokens: 1000
     });
 
-    let assistantMessage;
+    let assistantMessage = llmResult;
     let usedModel = llm.model;
 
-    // Check if LLM called a function
-    if (llmResult.type === 'tool_call') {
-      // LLM wants to use a tool!
-      console.log(`[AI Assistant] Tool call detected: ${llmResult.toolCall.name}`);
-      console.log(`[AI Assistant] Arguments:`, JSON.stringify(llmResult.toolCall.arguments, null, 2));
+    console.log(`[AI Assistant] LLM response: ${assistantMessage}`);
 
-      // Convert to legacy [COMMAND] format for backwards compatibility
-      assistantMessage = CommandMapper.toLegacyFormat(
-        llmResult.toolCall.name,
-        llmResult.toolCall.arguments
-      );
-
-      console.log(`[AI Assistant] Converted to legacy format: ${assistantMessage}`);
-    } else {
-      // No tool call, just text response
-      assistantMessage = llmResult.content;
-    }
 
     // ============================================================================
     // COMMAND PARSING - All 73 commands
@@ -2908,6 +2945,69 @@ Viktigt: Använd ALLTID funktionerna när användaren ber om en åtgärd!`;
         return res.json({
           success: true,
           message: `❌ Kunde inte skapa kategorin: ${dbError.message}`,
+          model: usedModel,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
+    // Parse for [CATEGORIZE_FROM_SENDER ...] command
+    const categorizeFromSenderMatch = assistantMessage.match(/\[CATEGORIZE_FROM_SENDER\s+sender="([^"]+)"\s+category="([^"]+)"\]/);
+    if (categorizeFromSenderMatch) {
+      const [, sender, category] = categorizeFromSenderMatch;
+      try {
+        console.log(`[AI Assistant] Categorizing all emails from ${sender} to ${category}`);
+
+        // Get label ID
+        const labelResult = await emailDb.pool.query(
+          'SELECT id FROM labels WHERE LOWER(name) = LOWER($1)',
+          [category]
+        );
+
+        if (labelResult.rows.length === 0) {
+          return res.json({
+            success: true,
+            message: `❌ Kategorin "${category}" finns inte. Vill du att jag skapar den först?`,
+            model: usedModel,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        const labelId = labelResult.rows[0].id;
+
+        // Get all emails from sender
+        const emailsResult = await emailDb.pool.query(
+          'SELECT id FROM emails WHERE LOWER(from_address) LIKE LOWER($1)',
+          [`%${sender}%`]
+        );
+
+        // Insert email_labels for all matching emails
+        let movedCount = 0;
+        for (const row of emailsResult.rows) {
+          await emailDb.pool.query(`
+            INSERT INTO email_labels (email_id, label_id, score, source, confidence)
+            VALUES ($1, $2, 1.0, 'assistant', 1.0)
+            ON CONFLICT (email_id, label_id) DO UPDATE SET
+              score = 1.0,
+              source = 'assistant',
+              confidence = 1.0,
+              decided_at = NOW()
+          `, [row.id, labelId]);
+          movedCount++;
+        }
+
+        return res.json({
+          success: true,
+          message: `✅ Jag har flyttat ${movedCount} emails från "${sender}" till kategorin "${category}"!`,
+          model: usedModel,
+          count: movedCount,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('[AI Assistant] Failed to categorize from sender:', err);
+        return res.json({
+          success: true,
+          message: `❌ Kunde inte flytta emails: ${err.message}`,
           model: usedModel,
           timestamp: new Date().toISOString()
         });
